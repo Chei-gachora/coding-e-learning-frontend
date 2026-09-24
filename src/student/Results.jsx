@@ -1,0 +1,119 @@
+import { Link } from 'react-router-dom';
+
+export default function Results() {
+  return (
+    <>
+      <header className="dashboard-navbar">
+        <div className="container dashboard-nav-content">
+          <Link to="/" className="logo">Code<span>Learn</span></Link>
+          <div className="dashboard-links">
+            <Link to="/dashboard">Dashboard</Link>
+            <Link to="/courses">Courses</Link>
+            <Link to="/labs">Labs</Link>
+            <Link to="/results" className="active">Results</Link>
+          </div>
+          <div className="student-profile">
+            <div className="profile-avatar">P</div>
+            <span>Student</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="results-page" style={{ padding: '40px 0', minHeight: '80vh' }}>
+        <div className="container">
+          <div className="page-header" style={{ marginBottom: '32px' }}>
+            <span className="section-label">PERFORMANCE &amp; GRADES</span>
+            <h1>Assessment &amp; Lab Results</h1>
+            <p>View your scores, instructor feedback, and grade details.</p>
+          </div>
+
+          <div className="results-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '40px' }}>
+            <div className="card" style={{ padding: '24px', borderRadius: '12px', background: '#1e293b', border: '1px solid #334155' }}>
+              <span style={{ fontSize: '14px', color: '#94a3b8' }}>Overall Average</span>
+              <h2 style={{ fontSize: '32px', color: '#38bdf8', margin: '8px 0' }}>82%</h2>
+              <span className="badge badge-success">Passed All Core Modules</span>
+            </div>
+
+            <div className="card" style={{ padding: '24px', borderRadius: '12px', background: '#1e293b', border: '1px solid #334155' }}>
+              <span style={{ fontSize: '14px', color: '#94a3b8' }}>Completed Assessments</span>
+              <h2 style={{ fontSize: '32px', color: '#4ade80', margin: '8px 0' }}>6 / 7</h2>
+              <span className="badge badge-warning">1 Pending Review</span>
+            </div>
+
+            <div className="card" style={{ padding: '24px', borderRadius: '12px', background: '#1e293b', border: '1px solid #334155' }}>
+              <span style={{ fontSize: '14px', color: '#94a3b8' }}>Total Points Earned</span>
+              <h2 style={{ fontSize: '32px', color: '#f59e0b', margin: '8px 0' }}>145 pts</h2>
+              <span className="badge badge-success">Rank #4 in Class</span>
+            </div>
+          </div>
+
+          <section className="card" style={{ padding: '28px', borderRadius: '12px', background: '#1e293b', border: '1px solid #334155', marginBottom: '32px' }}>
+            <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>Recent Submissions &amp; Grades</h2>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #334155', color: '#94a3b8', fontSize: '14px' }}>
+                    <th style={{ padding: '12px' }}>Activity</th>
+                    <th style={{ padding: '12px' }}>Category</th>
+                    <th style={{ padding: '12px' }}>Submitted Date</th>
+                    <th style={{ padding: '12px' }}>Score</th>
+                    <th style={{ padding: '12px' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #334155' }}>
+                    <td style={{ padding: '16px 12px' }}><strong>Build a Personal Profile Page</strong></td>
+                    <td style={{ padding: '16px 12px' }}>Daily Lab 01</td>
+                    <td style={{ padding: '16px 12px' }}>05 Sep 2026</td>
+                    <td style={{ padding: '16px 12px', color: '#4ade80', fontWeight: 'bold' }}>20 / 20</td>
+                    <td style={{ padding: '16px 12px' }}><span className="badge badge-success">Graded</span></td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #334155' }}>
+                    <td style={{ padding: '16px 12px' }}><strong>HTML Fundamentals Quiz</strong></td>
+                    <td style={{ padding: '16px 12px' }}>Quiz Assessment</td>
+                    <td style={{ padding: '16px 12px' }}>04 Sep 2026</td>
+                    <td style={{ padding: '16px 12px', color: '#38bdf8', fontWeight: 'bold' }}>18 / 20</td>
+                    <td style={{ padding: '16px 12px' }}><span className="badge badge-success">Graded</span></td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #334155' }}>
+                    <td style={{ padding: '16px 12px' }}><strong>Create Your First Heading</strong></td>
+                    <td style={{ padding: '16px 12px' }}>Coding Exercise</td>
+                    <td style={{ padding: '16px 12px' }}>02 Sep 2026</td>
+                    <td style={{ padding: '16px 12px', color: '#4ade80', fontWeight: 'bold' }}>10 / 10</td>
+                    <td style={{ padding: '16px 12px' }}><span className="badge badge-success">Graded</span></td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '16px 12px' }}><strong>Design a Styled Web Page</strong></td>
+                    <td style={{ padding: '16px 12px' }}>Daily Lab 02</td>
+                    <td style={{ padding: '16px 12px' }}>09 Sep 2026</td>
+                    <td style={{ padding: '16px 12px', color: '#f59e0b', fontWeight: 'bold' }}>Pending</td>
+                    <td style={{ padding: '16px 12px' }}><span className="badge badge-warning">Under Review</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="card" style={{ padding: '28px', borderRadius: '12px', background: '#1e293b', border: '1px solid #334155' }}>
+            <h2 style={{ marginBottom: '16px', fontSize: '20px' }}>💬 Instructor Feedback</h2>
+            <div style={{ background: '#0f172a', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #38bdf8' }}>
+              <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>HTML Personal Profile Lab</h3>
+              <p style={{ color: '#cbd5e1', lineHeight: '1.6', fontSize: '14px' }}>
+                “Great work, Pricilla! Your semantic markup is clean, correctly structured, and easy to read. Keep up the good work as we move on to CSS layout and styling!”
+              </p>
+              <div style={{ marginTop: '12px', fontSize: '12px', color: '#64748b' }}>
+                — Sarah Chen, Lead Instructor • Sept 6, 2026
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer className="site-footer">
+        <div className="container">
+          <p>© 2026 CodeLearn. Learn. Practice. Build.</p>
+        </div>
+      </footer>
+    </>
+  );
+}
