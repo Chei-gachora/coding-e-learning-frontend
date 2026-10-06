@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
 
 const LearningPaths = () => {
   const [activeFilter, setActiveFilter] = useState('all');
@@ -118,36 +119,7 @@ const LearningPaths = () => {
   return (
     <div className="learning-paths-page">
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="logo">
-          <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="logo-icon">💻</span>
-            <span className="logo-text">CodeLearn</span>
-          </Link>
-        </div>
-
-        <nav className="nav">
-          <Link to="/dashboard" className="nav-item">
-            <span>🏠</span> Dashboard
-          </Link>
-          <Link to="/my-courses" className="nav-item">
-            <span>📚</span> My Courses
-          </Link>
-          <Link to="/learning-paths" className="nav-item active">
-            <span>🔥</span> Learning Paths
-          </Link>
-          <Link to="/certificates" className="nav-item">
-            <span>🏆</span> Certificates
-          </Link>
-          <Link to="/dashboard" className="nav-item">
-            <span>⚙️</span> Settings
-          </Link>
-        </nav>
-
-        <div className="sidebar-footer">
-          <Link to="/login" className="logout-btn" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>Log Out</Link>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main Content */}
       <main className="main-content">

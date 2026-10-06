@@ -12,12 +12,14 @@ import Certificates from './student/Certificates';
 import Labs from './student/Labs';
 import Lesson from './student/Lessons';
 import Exercise from './exercise';
-import InstructorDashboard from './Instructordashboard';
+import InstructorDashboard from './instructorr/Instructordashboard';
 import AdminDashboard from './Admin/Admindashboard';
 import Login from './Login';
 import Register from './student/Register';
 import Results from './student/Results';
 import Settings from './assets/Settings';
+import { ImHtmlFive } from "react-icons/im";
+import { MdAdminPanelSettings } from "react-icons/md";
 
 function App() {
   return (

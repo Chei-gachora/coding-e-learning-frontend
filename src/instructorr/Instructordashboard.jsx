@@ -1,17 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from '../context/AuthContext';
+import logo from '../assets/codelearn_logo.jpg';
+import { IoBookSharp } from "react-icons/io5";
+import { FaLaptopCode } from "react-icons/fa6";
+import Sidebar from '../components/Sidebar';
 
 export default function InstructorDashboard() {
   const { user, logout, switchRole } = useAuth();
   const navigate = useNavigate();
 
   // State for pending student submissions
-  const [submissions, setSubmissions] = useState([
-    { id: 1, student: 'Brian Mwangi', activity: 'CSS Styling Challenge', date: '09 Sep 2026', status: 'Pending', score: null, feedback: '', code: '<style>\n  body { background: #0f172a; color: white; }\n  .card { padding: 20px; border-radius: 8px; }\n</style>' },
-    { id: 2, student: 'Ann Wanjiku', activity: 'HTML Profile Page', date: '09 Sep 2026', status: 'Pending', score: null, feedback: '', code: '<!DOCTYPE html>\n<html>\n  <body>\n    <h1>Ann Wanjiku Profile</h1>\n  </body>\n</html>' },
-    { id: 3, student: 'Kevin Otieno', activity: 'JavaScript Array Exercise', date: '08 Sep 2026', status: 'Pending', score: null, feedback: '', code: 'function filterScores(arr) {\n  return arr.filter(score => score >= 70);\n}' }
-  ]);
+  const [submissions, setSubmissions] = useState(() => {
+    const saved = localStorage.getItem(`codelearn_instructor_submissions_${user?.id}`);
+    return saved ? JSON.parse(saved) : [
+      { id: 1, student: 'Brian Mwangi', activity: 'CSS Styling Challenge', date: '09 Sep 2026', status: 'Pending', score: null, feedback: '', code: '<style>\n  body { background: #0f172a; color: white; }\n  .card { padding: 20px; border-radius: 8px; }\n</style>' },
+      { id: 2, student: 'Ann Wanjiku', activity: 'HTML Profile Page', date: '09 Sep 2026', status: 'Pending', score: null, feedback: '', code: '<!DOCTYPE html>\n<html>\n  <body>\n    <h1>Ann Wanjiku Profile</h1>\n  </body>\n</html>' },
+      { id: 3, student: 'Kevin Otieno', activity: 'JavaScript Array Exercise', date: '08 Sep 2026', status: 'Pending', score: null, feedback: '', code: 'function filterScores(arr) {\n  return arr.filter(score => score >= 70);\n}' }
+    ];
+  });
 
   // Modal states
   const [gradingSubmission, setGradingSubmission] = useState(null);
@@ -22,12 +29,28 @@ export default function InstructorDashboard() {
   const [newItemTitle, setNewItemTitle] = useState('');
   const [notification, setNotification] = useState('');
 
-  const [courses, setCourses] = useState([
-    { id: 1, title: 'HTML Fundamentals', students: 65, progress: 72 },
-    { id: 2, title: 'CSS Fundamentals', students: 54, progress: 48 },
-    { id: 3, title: 'JavaScript Essentials', students: 38, progress: 31 },
-    { id: 4, title: 'React Web Development', students: 29, progress: 15 }
-  ]);
+  const [courses, setCourses] = useState(() => {
+    const saved = localStorage.getItem(`codelearn_instructor_courses_${user?.id}`);
+    return saved ? JSON.parse(saved) : [
+      { id: 1, title: 'HTML Fundamentals', students: 65, progress: 72 },
+      { id: 2, title: 'CSS Fundamentals', students: 54, progress: 48 },
+      { id: 3, title: 'JavaScript Essentials', students: 38, progress: 31 },
+      { id: 4, title: 'React Web Development', students: 29, progress: 15 }
+    ];
+  });
+
+  // Sync state to localStorage for independent sessions
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`codelearn_instructor_submissions_${user.id}`, JSON.stringify(submissions));
+    }
+  }, [submissions, user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`codelearn_instructor_courses_${user.id}`, JSON.stringify(courses));
+    }
+  }, [courses, user?.id]);
 
   const handleOpenGradeModal = (sub) => {
     setGradingSubmission(sub);
@@ -72,36 +95,9 @@ export default function InstructorDashboard() {
   const instructorName = user?.name || 'Dr. Sarah Jenkins';
 
   return (
-    <>
-      <nav className="navbar">
-        <div className="container nav-content">
-          <Link to="/" className="logo">Code<span>Learn</span></Link>
-          <div className="nav-links">
-            <Link to="/instructor" className="active">Dashboard</Link>
-            <Link to="/courses">Courses</Link>
-            <Link to="/labs">Labs</Link>
-            <Link to="/results">Results</Link>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Role switcher */}
-            <div style={{ display: 'flex', gap: '4px', background: 'rgba(59, 130, 246, 0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-              <button onClick={() => { switchRole('student'); navigate('/dashboard'); }} className="btn btn-small btn-outline" style={{ fontSize: '11px', padding: '3px 6px' }}>Student</button>
-              <button onClick={() => switchRole('instructor')} className="btn btn-small btn-primary" style={{ fontSize: '11px', padding: '3px 6px' }}>Instructor</button>
-              <button onClick={() => { switchRole('admin'); navigate('/admin'); }} className="btn btn-small btn-outline" style={{ fontSize: '11px', padding: '3px 6px' }}>Admin</button>
-            </div>
-
-            <div className="user-profile">
-              <div className="user-avatar" style={{ background: '#8b5cf6' }}>{user?.avatar || 'I'}</div>
-              <span>{instructorName}</span>
-            </div>
-
-            <button onClick={handleLogout} className="btn btn-outline btn-small" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
-              Logout
-            </button>
-          </div>
-        </div>
-      </nav>
+    <div className="dashboard-layout">
+      <Sidebar />
+      <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
 
       {notification && (
         <div style={{ background: '#10b981', color: '#fff', textAlign: 'center', padding: '10px', fontWeight: '600', fontSize: '14px' }}>
@@ -109,8 +105,8 @@ export default function InstructorDashboard() {
         </div>
       )}
 
-      <main className="instructor-page">
-        <div className="container" style={{ paddingTop: '32px' }}>
+      <main className="instructor-page" style={{ minHeight: 'unset', padding: '0' }}>
+        <div className="container" style={{ paddingTop: '0', maxWidth: '100%', padding: '0' }}>
           <div className="instructor-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, #1e1b4b 0%, #1e293b 100%)', padding: '28px', borderRadius: '16px', border: '1px solid #4338ca', marginBottom: '28px' }}>
             <div>
               <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc', border: '1px solid rgba(139, 92, 246, 0.4)', marginBottom: '8px' }}>
@@ -159,7 +155,7 @@ export default function InstructorDashboard() {
 
             <div className="management-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
               <div className="management-card card" style={{ padding: '20px' }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📚</div>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}><IoBookSharp /></div>
                 <h3 style={{ fontSize: '16px' }}>Courses</h3>
                 <p style={{ fontSize: '13px', color: '#94a3b8', margin: '6px 0 14px' }}>Create and manage coding courses.</p>
                 <button onClick={() => setActiveModal('course')} className="btn btn-small btn-outline" style={{ width: '100%' }}>
@@ -177,7 +173,7 @@ export default function InstructorDashboard() {
               </div>
 
               <div className="management-card card" style={{ padding: '20px' }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>💻</div>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}><FaLaptopCode /></div>
                 <h3 style={{ fontSize: '16px' }}>Exercises</h3>
                 <p style={{ fontSize: '13px', color: '#94a3b8', margin: '6px 0 14px' }}>Create coding tasks and starter code.</p>
                 <button onClick={() => setActiveModal('exercise')} className="btn btn-small btn-outline" style={{ width: '100%' }}>
@@ -355,6 +351,7 @@ export default function InstructorDashboard() {
           <p>LoggedIn as: {instructorName} (Instructor)</p>
         </div>
       </footer>
-    </>
+      </div>
+    </div>
   );
 }

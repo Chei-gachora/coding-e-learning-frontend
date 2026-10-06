@@ -29,6 +29,33 @@ export const DEFAULT_USERS = {
   }
 };
 
+/**
+ * Detect user role from their email address.
+ * - local part is/starts with "admin"      -> admin
+ * - local part is/starts with "instructor" -> instructor
+ * - everything else                        -> student
+ */
+export function detectRoleFromEmail(email) {
+  const lower = (email || '').toLowerCase().trim();
+  const localPart = lower.split('@')[0];
+
+  if (
+    localPart === 'admin' ||
+    localPart.startsWith('admin.') ||
+    localPart.startsWith('admin_')
+  ) {
+    return 'admin';
+  }
+  if (
+    localPart === 'instructor' ||
+    localPart.startsWith('instructor.') ||
+    localPart.startsWith('instructor_')
+  ) {
+    return 'instructor';
+  }
+  return 'student';
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('codelearn_user');
@@ -39,9 +66,39 @@ export function AuthProvider({ children }) {
         console.error('Failed to parse saved user', e);
       }
     }
-    // Default logged in user as student for quick preview, or null if unauthenticated
-    return DEFAULT_USERS.student;
+    return null;
   });
+
+  // 5 minute inactivity timeout
+  useEffect(() => {
+    let inactivityTimer;
+
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      if (user) {
+        inactivityTimer = setTimeout(() => {
+          logout();
+          alert('You have been logged out due to 5 minutes of inactivity.');
+        }, 5 * 60 * 1000);
+      }
+    };
+
+    if (user) {
+      resetTimer();
+      window.addEventListener('mousemove', resetTimer);
+      window.addEventListener('keydown', resetTimer);
+      window.addEventListener('click', resetTimer);
+      window.addEventListener('scroll', resetTimer);
+    }
+
+    return () => {
+      clearTimeout(inactivityTimer);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+      window.removeEventListener('click', resetTimer);
+      window.removeEventListener('scroll', resetTimer);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -51,22 +108,22 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  const login = (email, password, role = 'student', customName = '') => {
+  const login = (email, password, customName = '') => {
+    // Auto-detect role from the email — no manual role selection needed
+    const role = detectRoleFromEmail(email);
     let userData = DEFAULT_USERS[role] || DEFAULT_USERS.student;
-    
-    // If user provided a custom email or name, override
+
     if (email) {
       userData = {
         ...userData,
         email: email,
-        name: customName || (email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1)),
+        name:
+          customName ||
+          email.split('@')[0].charAt(0).toUpperCase() +
+            email.split('@')[0].slice(1),
         avatar: (customName || email)[0].toUpperCase(),
-        role: role
-      };
-    } else {
-      userData = {
-        ...userData,
-        role: role
+        role: role,
+        id: 'usr_' + role + '_' + email.toLowerCase().replace(/[^a-z0-9]/g, ''),
       };
     }
 

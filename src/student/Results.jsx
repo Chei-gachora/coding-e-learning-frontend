@@ -1,26 +1,14 @@
 import { Link } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
 
 export default function Results() {
   return (
-    <>
-      <header className="dashboard-navbar">
-        <div className="container dashboard-nav-content">
-          <Link to="/" className="logo">Code<span>Learn</span></Link>
-          <div className="dashboard-links">
-            <Link to="/dashboard">Dashboard</Link>
-            <Link to="/courses">Courses</Link>
-            <Link to="/labs">Labs</Link>
-            <Link to="/results" className="active">Results</Link>
-          </div>
-          <div className="student-profile">
-            <div className="profile-avatar">P</div>
-            <span>Student</span>
-          </div>
-        </div>
-      </header>
+    <div className="dashboard-layout">
+      <Sidebar />
+      <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
 
-      <main className="results-page" style={{ padding: '40px 0', minHeight: '80vh' }}>
-        <div className="container">
+      <main className="results-page" style={{ minHeight: 'unset', padding: '0' }}>
+        <div className="container" style={{ maxWidth: '100%', padding: '0' }}>
           <div className="page-header" style={{ marginBottom: '32px' }}>
             <span className="section-label">PERFORMANCE &amp; GRADES</span>
             <h1>Assessment &amp; Lab Results</h1>
@@ -114,6 +102,7 @@ export default function Results() {
           <p>© 2026 CodeLearn. Learn. Practice. Build.</p>
         </div>
       </footer>
-    </>
+      </div>
+    </div>
   );
 }

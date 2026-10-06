@@ -1,26 +1,26 @@
 import { Link } from 'react-router-dom';
+import { IoBookSharp } from "react-icons/io5";
+import { SiCss } from "react-icons/si";
+import { IoLogoJavascript } from "react-icons/io5";
+import { FaLaptopCode } from "react-icons/fa6";
+import { FaSyringe } from "react-icons/fa";
+import { TiTick } from "react-icons/ti";
+import { FaHourglassHalf } from "react-icons/fa";
+
+import { AiFillWarning } from "react-icons/ai";
+
+import { GiPadlock } from "react-icons/gi";
+import { TiStarFullOutline } from "react-icons/ti";
+import Sidebar from '../components/Sidebar';
 
 export default function Labs() {
   return (
-    <>
-      <header className="dashboard-navbar">
-        <div className="container dashboard-nav-content">
-          <Link to="/" className="logo">Code<span>Learn</span></Link>
-          <div className="dashboard-links">
-            <Link to="/dashboard">Dashboard</Link>
-            <Link to="/courses">Courses</Link>
-            <Link to="/labs" className="active">Labs</Link>
-            <Link to="/results">Results</Link>
-          </div>
-          <div className="student-profile">
-            <div className="profile-avatar">P</div>
-            <span>Student</span>
-          </div>
-        </div>
-      </header>
+    <div className="dashboard-layout">
+      <Sidebar />
+      <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
 
-      <main className="labs-page">
-        <div className="container">
+      <main className="labs-page" style={{ minHeight: 'unset', padding: '0' }}>
+        <div className="container" style={{ maxWidth: '100%', padding: '0' }}>
           <div className="page-header">
             <div>
               <span className="section-label">PRACTICAL LEARNING</span>
@@ -33,7 +33,7 @@ export default function Labs() {
 
           <section className="lab-summary">
             <div className="lab-summary-card">
-              <span className="summary-icon">🧪</span>
+              <span className="summary-icon"><FaSyringe /></span>
               <div>
                 <strong>4</strong>
                 <span>Total Labs</span>
@@ -41,7 +41,7 @@ export default function Labs() {
             </div>
 
             <div className="lab-summary-card">
-              <span className="summary-icon">✅</span>
+              <span className="summary-icon"><TiTick /></span>
               <div>
                 <strong>1</strong>
                 <span>Completed</span>
@@ -49,7 +49,7 @@ export default function Labs() {
             </div>
 
             <div className="lab-summary-card">
-              <span className="summary-icon">⏳</span>
+              <span className="summary-icon"><FaHourglassHalf /></span>
               <div>
                 <strong>2</strong>
                 <span>Pending</span>
@@ -57,7 +57,7 @@ export default function Labs() {
             </div>
 
             <div className="lab-summary-card">
-              <span className="summary-icon">⚠️</span>
+              <span className="summary-icon"><AiFillWarning /></span>
               <div>
                 <strong>1</strong>
                 <span>Missed</span>
@@ -79,8 +79,8 @@ export default function Labs() {
                 Create a simple personal profile webpage using basic HTML elements such as headings, paragraphs, images and links.
               </p>
               <div className="lab-details">
-                <span>📚 HTML Fundamentals</span>
-                <span>⭐ 20 Points</span>
+                <span><IoBookSharp /> HTML Fundamentals</span>
+                <span><TiStarFullOutline /> 20 Points</span>
                 <span>📅 Due: Sept 5</span>
               </div>
               <div className="lab-progress">
@@ -110,8 +110,8 @@ export default function Labs() {
                 Build a webpage and use CSS to control colors, spacing, typography, borders and layout.
               </p>
               <div className="lab-details">
-                <span>🎨 CSS Fundamentals</span>
-                <span>⭐ 20 Points</span>
+                <span><SiCss /> CSS Fundamentals</span>
+                <span><TiStarFullOutline /> 20 Points</span>
                 <span>📅 Due: Sept 12</span>
               </div>
               <div className="lab-progress">
@@ -141,8 +141,8 @@ export default function Labs() {
                 Create an interactive webpage using JavaScript variables, functions, events and DOM manipulation.
               </p>
               <div className="lab-details">
-                <span>⚡ JavaScript</span>
-                <span>⭐ 25 Points</span>
+                <span><IoLogoJavascript /> JavaScript</span>
+                <span><TiStarFullOutline /> 25 Points</span>
                 <span>📅 Due: Sept 19</span>
               </div>
               <div className="lab-progress">
@@ -155,7 +155,7 @@ export default function Labs() {
                 </div>
               </div>
               <button className="btn btn-disabled" disabled>
-                🔒 Locked
+                <GiPadlock /> Locked
               </button>
             </article>
 
@@ -172,8 +172,8 @@ export default function Labs() {
                 Create a responsive landing page that adapts to different screen sizes using HTML and CSS.
               </p>
               <div className="lab-details">
-                <span>💻 HTML &amp; CSS</span>
-                <span>⭐ 25 Points</span>
+                <span><FaLaptopCode /> HTML &amp; CSS</span>
+                <span><TiStarFullOutline /> 25 Points</span>
                 <span>📅 Due: Sept 3</span>
               </div>
               <div className="lab-progress">
@@ -198,6 +198,7 @@ export default function Labs() {
           <p>© 2026 CodeLearn. Learn. Practice. Build.</p>
         </div>
       </footer>
-    </>
+      </div>
+    </div>
   );
 }

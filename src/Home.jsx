@@ -1,4 +1,13 @@
 import { Link } from 'react-router-dom';
+import { ImHtmlFive } from "react-icons/im";
+import { SiCss } from "react-icons/si";
+import { IoLogoJavascript } from "react-icons/io5";
+import { DiReact } from "react-icons/di";
+import { ImRocket } from "react-icons/im";
+import { IoBookSharp } from "react-icons/io5";
+import { FaLaptopCode } from "react-icons/fa6";
+import { SiProgress } from "react-icons/si";
+
 
 export default function Home() {
   return (
@@ -28,7 +37,7 @@ export default function Home() {
       <section className="hero" id="home">
         <div className="container hero-content">
           <div className="hero-text">
-            <span className="hero-badge">🚀 Learn. Practice. Build.</span>
+            <span className="hero-badge"><ImRocket /> Learn. Practice. Build.</span>
             <h1>
               Learn to Code. <span>Build Your Future.</span>
             </h1>
@@ -98,28 +107,28 @@ export default function Home() {
 
           <div className="course-grid">
             <Link to="/courses" className="course-card">
-              <div className="course-icon">🌐</div>
+              <div className="course-icon"><ImHtmlFive /></div>
               <h3>HTML</h3>
               <p>Learn how to structure modern websites using HTML.</p>
               <span className="course-level">Beginner</span>
             </Link>
 
             <Link to="/courses" className="course-card">
-              <div className="course-icon">🎨</div>
+              <div className="course-icon"><SiCss /></div>
               <h3>CSS</h3>
               <p>Create beautiful and responsive website designs.</p>
               <span className="course-level">Beginner</span>
             </Link>
 
             <Link to="/courses" className="course-card">
-              <div className="course-icon">⚡</div>
+              <div className="course-icon"><IoLogoJavascript /></div>
               <h3>JavaScript</h3>
               <p>Add interactivity and functionality to your websites.</p>
               <span className="course-level">Intermediate</span>
             </Link>
 
             <Link to="/courses" className="course-card">
-              <div className="course-icon">⚛️</div>
+              <div className="course-icon"><DiReact /></div>
               <h3>React</h3>
               <p>Build modern interactive interfaces using React.</p>
               <span className="course-level">Advanced</span>
@@ -138,7 +147,7 @@ export default function Home() {
 
           <div className="features-grid">
             <div className="feature">
-              <div className="feature-icon">📚</div>
+              <div className="feature-icon"><IoBookSharp /></div>
               <h3>Structured Lessons</h3>
               <p>
                 Follow organized modules and lessons designed for progressive learning.
@@ -146,7 +155,7 @@ export default function Home() {
             </div>
 
             <div className="feature">
-              <div className="feature-icon">💻</div>
+              <div className="feature-icon"><FaLaptopCode /></div>
               <h3>Practice Coding</h3>
               <p>
                 Practice your skills through coding exercises and practical labs.
@@ -154,7 +163,7 @@ export default function Home() {
             </div>
 
             <div className="feature">
-              <div className="feature-icon">📈</div>
+              <div className="feature-icon"><SiProgress /></div>
               <h3>Track Progress</h3>
               <p>
                 Monitor your learning progress, grades and completed activities.

@@ -1,20 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/codelearn_logo.jpg';
+import { IoBookSharp } from "react-icons/io5";
+import Sidebar from '../components/Sidebar';
 
 export default function AdminDashboard() {
   const { user, logout, switchRole } = useAuth();
   const navigate = useNavigate();
 
   // User Management State
-  const [usersList, setUsersList] = useState([
-    { id: 1, name: 'Alex Johnson', email: 'student@codelearn.com', role: 'student', status: 'Active', joined: 'Jan 2026' },
-    { id: 2, name: 'Dr. Sarah hadasa', email: 'instructor@codelearn.com', role: 'instructor', status: 'Active', joined: 'Feb 2026' },
-    { id: 3, name: 'System Administrator', email: 'admin@codelearn.com', role: 'admin', status: 'Active', joined: 'Dec 2025' },
-    { id: 4, name: 'Brian Mwangi', email: 'brian@student.com', role: 'student', status: 'Active', joined: 'Mar 2026' },
-    { id: 5, name: 'Prof Dennis Muli', email: 'david@instructor.com', role: 'instructor', status: 'Active', joined: 'Feb 2026' },
-    { id: 6, name: 'Ann Wanjiku', email: 'ann@student.com', role: 'student', status: 'Active', joined: 'Apr 2026' }
-  ]);
+  const [usersList, setUsersList] = useState(() => {
+    const saved = localStorage.getItem(`codelearn_admin_users_${user?.id}`);
+    return saved ? JSON.parse(saved) : [
+      { id: 1, name: 'Alex Johnson', email: 'student@codelearn.com', role: 'student', status: 'Active', joined: 'Jan 2026' },
+      { id: 2, name: 'Dr. Sarah hadasa', email: 'instructor@codelearn.com', role: 'instructor', status: 'Active', joined: 'Feb 2026' },
+      { id: 3, name: 'System Administrator', email: 'admin@codelearn.com', role: 'admin', status: 'Active', joined: 'Dec 2025' },
+      { id: 4, name: 'Brian Mwangi', email: 'brian@student.com', role: 'student', status: 'Active', joined: 'Mar 2026' },
+      { id: 5, name: 'Prof Dennis Muli', email: 'david@instructor.com', role: 'instructor', status: 'Active', joined: 'Feb 2026' },
+      { id: 6, name: 'Ann Wanjiku', email: 'ann@student.com', role: 'student', status: 'Active', joined: 'Apr 2026' }
+    ];
+  });
 
   const [filterRole, setFilterRole] = useState('all');
   const [showUsersModal, setShowUsersModal] = useState(false);
@@ -27,11 +33,34 @@ export default function AdminDashboard() {
   const [newUserRole, setNewUserRole] = useState('student');
 
   // Platform settings state
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [allowRegistration, setAllowRegistration] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [maintenanceMode, setMaintenanceMode] = useState(() => {
+    return localStorage.getItem(`codelearn_admin_maint_${user?.id}`) === 'true';
+  });
+  const [allowRegistration, setAllowRegistration] = useState(() => {
+    const saved = localStorage.getItem(`codelearn_admin_reg_${user?.id}`);
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [emailNotifications, setEmailNotifications] = useState(() => {
+    const saved = localStorage.getItem(`codelearn_admin_email_${user?.id}`);
+    return saved !== null ? saved === 'true' : true;
+  });
 
   const [notification, setNotification] = useState('');
+
+  // Sync state to localStorage
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`codelearn_admin_users_${user.id}`, JSON.stringify(usersList));
+    }
+  }, [usersList, user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`codelearn_admin_maint_${user.id}`, maintenanceMode);
+      localStorage.setItem(`codelearn_admin_reg_${user.id}`, allowRegistration);
+      localStorage.setItem(`codelearn_admin_email_${user.id}`, emailNotifications);
+    }
+  }, [maintenanceMode, allowRegistration, emailNotifications, user?.id]);
 
   const handleAddUser = (e) => {
     e.preventDefault();
@@ -75,35 +104,9 @@ export default function AdminDashboard() {
   const filteredUsers = filterRole === 'all' ? usersList : usersList.filter(u => u.role === filterRole);
 
   return (
-    <>
-      <nav className="navbar">
-        <div className="container nav-content">
-          <Link to="/" className="logo">Code<span>Learn</span></Link>
-          <div className="nav-links">
-            <Link to="/admin" className="active">Dashboard</Link>
-            <Link to="/courses">Courses</Link>
-            <Link to="/login">Logout</Link>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Role Switcher */}
-            <div style={{ display: 'flex', gap: '4px', background: 'rgba(59, 130, 246, 0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-              <button onClick={() => { switchRole('student'); navigate('/dashboard'); }} className="btn btn-small btn-outline" style={{ fontSize: '11px', padding: '3px 6px' }}>Student</button>
-              <button onClick={() => { switchRole('instructor'); navigate('/instructor'); }} className="btn btn-small btn-outline" style={{ fontSize: '11px', padding: '3px 6px' }}>Instructor</button>
-              <button onClick={() => switchRole('admin')} className="btn btn-small btn-primary" style={{ fontSize: '11px', padding: '3px 6px' }}>Admin</button>
-            </div>
-
-            <div className="user-profile">
-              <div className="user-avatar" style={{ background: '#f43f5e' }}>{user?.avatar || 'A'}</div>
-              <span>{adminName}</span>
-            </div>
-
-            <button onClick={handleLogout} className="btn btn-outline btn-small" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
-              Logout
-            </button>
-          </div>
-        </div>
-      </nav>
+    <div className="dashboard-layout">
+      <Sidebar />
+      <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
 
       {notification && (
         <div style={{ background: '#10b981', color: '#fff', textAlign: 'center', padding: '10px', fontWeight: '600', fontSize: '14px' }}>
@@ -111,8 +114,8 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <main className="admin-page">
-        <div className="container" style={{ paddingTop: '32px' }}>
+      <main className="admin-page" style={{ minHeight: 'unset', padding: '0' }}>
+        <div className="container" style={{ paddingTop: '0', maxWidth: '100%', padding: '0' }}>
           <div className="admin-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, #4c0519 0%, #1e293b 100%)', padding: '28px', borderRadius: '16px', border: '1px solid #9f1239', marginBottom: '28px' }}>
             <div>
               <span className="badge" style={{ background: 'rgba(244, 63, 94, 0.2)', color: '#fda4af', border: '1px solid rgba(244, 63, 94, 0.4)', marginBottom: '8px' }}>
@@ -175,7 +178,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="admin-card card" style={{ padding: '24px' }}>
-                <div style={{ fontSize: '36px', marginBottom: '10px' }}>📚</div>
+                <div style={{ fontSize: '36px', marginBottom: '10px' }}><IoBookSharp /></div>
                 <h3 style={{ fontSize: '18px' }}>Course Management</h3>
                 <p style={{ fontSize: '13px', color: '#94a3b8', margin: '8px 0 16px' }}>
                   Review, approve, and organize published courses and learning modules.
@@ -465,6 +468,7 @@ export default function AdminDashboard() {
           <p>LoggedIn as: {adminName} (Admin)</p>
         </div>
       </footer>
-    </>
+      </div>
+    </div>
   );
 }

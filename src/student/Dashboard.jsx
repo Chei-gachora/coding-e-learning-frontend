@@ -1,21 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/codelearn_logo.jpg';
+import { FaHandsClapping } from "react-icons/fa6";
+import { IoBookSharp } from "react-icons/io5";
+import { SiProgress } from "react-icons/si";
+import { SiTicktick } from "react-icons/si";
+import { GiTrophyCup } from "react-icons/gi";
+import { ImHtmlFive } from "react-icons/im";
+import { FaSyringe } from "react-icons/fa";
+import { LuMessageCircleCode } from "react-icons/lu";
+import Sidebar from '../components/Sidebar';
 
 export default function StudentDashboard() {
   const { user, logout, switchRole } = useAuth();
   const navigate = useNavigate();
 
   // Interactive local state for student activities & lab submission
-  const [tasks, setTasks] = useState([
-    { id: 1, title: 'HTML Forms Tutorial', desc: 'Complete the lesson tutorial', completed: false, category: 'Lesson' },
-    { id: 2, title: 'Form Exercise', desc: 'Practice creating HTML form controls', completed: false, category: 'Exercise' },
-    { id: 3, title: 'HTML Introduction', desc: 'Lesson completed', completed: true, category: 'Lesson' }
-  ]);
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem(`codelearn_tasks_${user?.id}`);
+    return saved ? JSON.parse(saved) : [
+      { id: 1, title: 'HTML Forms Tutorial', desc: 'Complete the lesson tutorial', completed: false, category: 'Lesson' },
+      { id: 2, title: 'Form Exercise', desc: 'Practice creating HTML form controls', completed: false, category: 'Exercise' },
+      { id: 3, title: 'HTML Introduction', desc: 'Lesson completed', completed: true, category: 'Lesson' }
+    ];
+  });
 
-  const [submittedLabs, setSubmittedLabs] = useState([
-    { id: 1, title: 'Personal Profile Webpage', status: 'Due Today', submitted: false, code: '' }
-  ]);
+  const [submittedLabs, setSubmittedLabs] = useState(() => {
+    const saved = localStorage.getItem(`codelearn_labs_${user?.id}`);
+    return saved ? JSON.parse(saved) : [
+      { id: 1, title: 'Personal Profile Webpage', status: 'Due Today', submitted: false, code: '' }
+    ];
+  });
+
+  // Sync state to localStorage for independent sessions
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`codelearn_tasks_${user.id}`, JSON.stringify(tasks));
+    }
+  }, [tasks, user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`codelearn_labs_${user.id}`, JSON.stringify(submittedLabs));
+    }
+  }, [submittedLabs, user?.id]);
 
   const [showLabModal, setShowLabModal] = useState(false);
   const [activeLab, setActiveLab] = useState(null);
@@ -52,39 +81,9 @@ export default function StudentDashboard() {
   const userName = user?.name || 'Alex Johnson';
 
   return (
-    <>
-      <header className="dashboard-navbar">
-        <div className="container dashboard-nav-content">
-          <Link to="/" className="logo">
-            Code<span>Learn</span>
-          </Link>
-
-          <nav className="dashboard-links">
-            <Link to="/dashboard" className="active">Dashboard</Link>
-            <Link to="/courses">Courses</Link>
-            <Link to="/labs">Labs</Link>
-            <Link to="/results">Results</Link>
-          </nav>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Role indicator */}
-            <div style={{ display: 'flex', gap: '4px', background: 'rgba(59, 130, 246, 0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-              <button onClick={() => switchRole('student')} className="btn btn-small btn-primary" style={{ fontSize: '11px', padding: '3px 6px' }}>Student</button>
-              <button onClick={() => { switchRole('instructor'); navigate('/instructor'); }} className="btn btn-small btn-outline" style={{ fontSize: '11px', padding: '3px 6px' }}>Instructor</button>
-              <button onClick={() => { switchRole('admin'); navigate('/admin'); }} className="btn btn-small btn-outline" style={{ fontSize: '11px', padding: '3px 6px' }}>Admin</button>
-            </div>
-
-            <div className="student-profile">
-              <div className="profile-avatar">{user?.avatar || 'S'}</div>
-              <span>{userName}</span>
-            </div>
-
-            <button onClick={handleLogout} className="btn btn-outline btn-small" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="dashboard-layout">
+      <Sidebar />
+      <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
 
       {notification && (
         <div style={{ background: '#10b981', color: '#fff', textAlign: 'center', padding: '10px', fontWeight: '600', fontSize: '14px' }}>
@@ -92,13 +91,13 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      <main className="dashboard">
-        <div className="container">
+      <main className="dashboard" style={{ minHeight: 'unset', paddingTop: '0' }}>
+        <div className="container" style={{ maxWidth: '100%', padding: '0' }}>
           {/* WELCOME */}
           <section className="welcome-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, #131c2e 0%, #1e293b 100%)', padding: '28px', borderRadius: '16px', border: '1px solid #24344d', marginBottom: '28px' }}>
             <div>
               <span className="badge badge-success" style={{ marginBottom: '10px' }}>🎓 STUDENT PORTAL</span>
-              <h1 style={{ fontSize: '28px', marginTop: '6px' }}>Welcome back, {userName}! 👋</h1>
+              <h1 style={{ fontSize: '28px', marginTop: '6px' }}>Welcome back, {userName}! <FaHandsClapping /></h1>
               <p style={{ color: '#94a3b8', marginTop: '4px' }}>
                 Track your course progress, complete daily labs, and build real-world coding projects.
               </p>
@@ -113,7 +112,7 @@ export default function StudentDashboard() {
           {/* PROGRESS OVERVIEW STATS */}
           <section className="dashboard-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
             <div className="dashboard-stat card" style={{ padding: '20px' }}>
-              <div className="stat-icon" style={{ fontSize: '28px' }}>📚</div>
+              <div className="stat-icon" style={{ fontSize: '28px' }}><IoBookSharp /></div>
               <div>
                 <strong style={{ fontSize: '24px' }}>3</strong>
                 <span style={{ display: 'block', color: '#94a3b8', fontSize: '13px' }}>Enrolled Courses</span>
@@ -121,7 +120,7 @@ export default function StudentDashboard() {
             </div>
 
             <div className="dashboard-stat card" style={{ padding: '20px' }}>
-              <div className="stat-icon" style={{ fontSize: '28px' }}>📈</div>
+              <div className="stat-icon" style={{ fontSize: '28px' }}><SiProgress /></div>
               <div>
                 <strong style={{ fontSize: '24px' }}>42%</strong>
                 <span style={{ display: 'block', color: '#94a3b8', fontSize: '13px' }}>Overall Progress</span>
@@ -129,7 +128,7 @@ export default function StudentDashboard() {
             </div>
 
             <div className="dashboard-stat card" style={{ padding: '20px' }}>
-              <div className="stat-icon" style={{ fontSize: '28px' }}>✅</div>
+              <div className="stat-icon" style={{ fontSize: '28px' }}><SiTicktick /></div>
               <div>
                 <strong style={{ fontSize: '24px' }}>
                   {18 + tasks.filter(t => t.completed).length}
@@ -139,7 +138,7 @@ export default function StudentDashboard() {
             </div>
 
             <div className="dashboard-stat card" style={{ padding: '20px' }}>
-              <div className="stat-icon" style={{ fontSize: '28px' }}>🏆</div>
+              <div className="stat-icon" style={{ fontSize: '28px' }}><GiTrophyCup /></div>
               <div>
                 <strong style={{ fontSize: '24px' }}>76%</strong>
                 <span style={{ display: 'block', color: '#94a3b8', fontSize: '13px' }}>Average Grade</span>
@@ -159,7 +158,7 @@ export default function StudentDashboard() {
 
             <div className="current-course card" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
               <div className="course-main" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                <div className="large-course-icon" style={{ fontSize: '40px', background: 'rgba(59, 130, 246, 0.1)', padding: '16px', borderRadius: '12px' }}>🌐</div>
+                <div className="large-course-icon" style={{ fontSize: '40px', background: 'rgba(59, 130, 246, 0.1)', padding: '16px', borderRadius: '12px' }}><ImHtmlFive /></div>
                 <div>
                   <span className="course-label" style={{ fontSize: '12px', color: '#06b6d4', fontWeight: '700' }}>FULL-STACK DEVELOPMENT</span>
                   <h3 style={{ fontSize: '18px', margin: '4px 0' }}>HTML &amp; Web Fundamentals</h3>
@@ -236,12 +235,12 @@ export default function StudentDashboard() {
               {submittedLabs.map((lab) => (
                 <div key={lab.id} className="lab-card card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                    <div className="lab-icon" style={{ fontSize: '28px' }}>🧪</div>
+                    <div className="lab-icon" style={{ fontSize: '28px' }}><FaSyringe /></div>
                     <div>
                       <h3 style={{ fontSize: '16px' }}>{lab.title}</h3>
                       <p style={{ fontSize: '13px', color: '#94a3b8' }}>Create a personal profile webpage using semantic HTML elements.</p>
                       <span className="deadline" style={{ fontSize: '12px', color: lab.submitted ? '#34d399' : '#fbbf24', marginTop: '4px', display: 'inline-block' }}>
-                        {lab.submitted ? '✅ Submitted for Grading' : '⏰ Due Today'}
+                        {lab.submitted ? '<SiTicktick /> Submitted for Grading' : '⏰ Due Today'}
                       </span>
                     </div>
                   </div>
@@ -269,7 +268,7 @@ export default function StudentDashboard() {
 
               <div className="result-card card" style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                  <div className="result-icon" style={{ fontSize: '28px' }}>🏆</div>
+                  <div className="result-icon" style={{ fontSize: '28px' }}><GiTrophyCup /></div>
                   <div>
                     <h3 style={{ fontSize: '16px' }}>HTML Fundamentals Quiz</h3>
                     <p style={{ fontSize: '13px', color: '#94a3b8' }}>Module 1 Assessment</p>
@@ -289,7 +288,7 @@ export default function StudentDashboard() {
               </div>
 
               <div className="feedback-card card" style={{ padding: '20px', display: 'flex', gap: '14px' }}>
-                <div className="feedback-icon" style={{ fontSize: '28px' }}>💬</div>
+                <div className="feedback-icon" style={{ fontSize: '28px' }}><LuMessageCircleCode /></div>
                 <div>
                   <h3 style={{ fontSize: '16px' }}>HTML Profile Lab</h3>
                   <p style={{ fontSize: '14px', color: '#cbd5e1', italic: 'true', margin: '4px 0' }}>
@@ -339,6 +338,8 @@ export default function StudentDashboard() {
           <p>LoggedIn as: {userName} (Student)</p>
         </div>
       </footer>
-    </>
+      </div>
+    </div>
   );
 }
+

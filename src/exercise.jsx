@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import Sidebar from './components/Sidebar';
 
 export default function Exercise() {
   const initialCode = `<!DOCTYPE html>
@@ -37,29 +38,12 @@ export default function Exercise() {
   };
 
   return (
-    <>
-      <header className="dashboard-navbar">
-        <div className="container dashboard-nav-content">
-          <Link to="/" className="logo">
-            Code<span>Learn</span>
-          </Link>
+    <div className="dashboard-layout">
+      <Sidebar />
+      <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
 
-          <nav className="dashboard-links">
-            <Link to="/dashboard">Dashboard</Link>
-            <Link to="/courses">Courses</Link>
-            <Link to="/labs">Labs</Link>
-            <Link to="/results">Results</Link>
-          </nav>
-
-          <div className="student-profile">
-            <div className="profile-avatar">P</div>
-            <span>Student</span>
-          </div>
-        </div>
-      </header>
-
-      <main className="exercise-page">
-        <div className="container">
+      <main className="exercise-page" style={{ minHeight: 'unset', padding: '0' }}>
+        <div className="container" style={{ maxWidth: '100%', padding: '0' }}>
           {/* BREADCRUMB */}
           <div className="breadcrumb">
             <Link to="/courses">Courses</Link>
@@ -239,6 +223,7 @@ export default function Exercise() {
           <p>© 2026 CodeLearn. All rights reserved.</p>
         </div>
       </footer>
-    </>
+      </div>
+    </div>
   );
 }

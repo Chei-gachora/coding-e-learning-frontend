@@ -1,12 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import Sidebar from '../components/Sidebar';
 
 export default function Lesson() {
-  const [code, setCode] = useState('<h1>Hello, Developer!</h1>\n<p>This is my first live HTML code preview!</p>');
+  const { user } = useAuth();
+
+  const [code, setCode] = useState(() => {
+    return localStorage.getItem(`codelearn_code_${user?.id}`) || '<h1>Hello, Developer!</h1>\n<p>This is my first live HTML code preview!</p>';
+  });
   const [activeTab, setActiveTab] = useState('editor');
   const [quizAnswer, setQuizAnswer] = useState('');
-  const [quizSubmitted, setQuizSubmitted] = useState(false);
-  const [quizCorrect, setQuizCorrect] = useState(false);
+  
+  const [quizSubmitted, setQuizSubmitted] = useState(() => {
+    return localStorage.getItem(`codelearn_quiz_submitted_${user?.id}`) === 'true';
+  });
+  
+  const [quizCorrect, setQuizCorrect] = useState(() => {
+    return localStorage.getItem(`codelearn_quiz_correct_${user?.id}`) === 'true';
+  });
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`codelearn_code_${user.id}`, code);
+    }
+  }, [code, user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`codelearn_quiz_submitted_${user.id}`, quizSubmitted);
+      localStorage.setItem(`codelearn_quiz_correct_${user.id}`, quizCorrect);
+    }
+  }, [quizSubmitted, quizCorrect, user?.id]);
 
   const handleQuizSubmit = () => {
     if (!quizAnswer) return;
@@ -15,29 +40,12 @@ export default function Lesson() {
   };
 
   return (
-    <>
-      <header className="navbar">
-        <div className="container nav-content">
-          <Link to="/" className="logo">
-            Code<span>Learn</span>
-          </Link>
+    <div className="dashboard-layout">
+      <Sidebar />
+      <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
 
-          <nav className="nav-links">
-            <Link to="/dashboard">Dashboard</Link>
-            <Link to="/courses">Courses</Link>
-            <Link to="/labs">Labs</Link>
-            <Link to="/results">Results</Link>
-          </nav>
-
-          <div className="user-profile">
-            <div className="user-avatar">P</div>
-            <span>Student</span>
-          </div>
-        </div>
-      </header>
-
-      <main className="lesson-page">
-        <div className="container">
+      <main className="lesson-page" style={{ minHeight: 'unset', padding: '0' }}>
+        <div className="container" style={{ maxWidth: '100%', padding: '0' }}>
           {/* BREADCRUMB */}
           <div className="breadcrumb">
             <Link to="/courses">Courses</Link>
@@ -272,6 +280,7 @@ export default function Lesson() {
           <p>© 2026 CodeLearn. All rights reserved.</p>
         </div>
       </footer>
-    </>
+      </div>
+    </div>
   );
 }

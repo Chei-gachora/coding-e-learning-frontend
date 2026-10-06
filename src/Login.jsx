@@ -1,160 +1,144 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { useAuth, detectRoleFromEmail } from './context/AuthContext';
+import codelearnLogo from './assets/codelearn_logo.jpg';
+import { PiStudentBold } from 'react-icons/pi';
+import { FaChalkboardTeacher } from 'react-icons/fa';
+import { MdAdminPanelSettings } from 'react-icons/md';
+
 
 export default function Login() {
-  const [email, setEmail] = useState('student@codelearn.com');
-  const [password, setPassword] = useState('password123');
-  const [role, setRole] = useState('student');
-  const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
 
-  const handleRoleSelect = (selectedRole) => {
-    setRole(selectedRole);
-    if (selectedRole === 'student') {
-      setEmail('student@codelearn.com');
-    } else if (selectedRole === 'instructor') {
-      setEmail('instructor@codelearn.com');
-    } else if (selectedRole === 'admin') {
-      setEmail('admin@codelearn.com');
+  // Redirect already-logged-in users straight to their dashboard
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'instructor') navigate('/instructor', { replace: true });
+      else if (user.role === 'admin') navigate('/admin', { replace: true });
+      else navigate('/dashboard', { replace: true });
     }
-  };
+  }, [user, navigate]);
+
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError]       = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [fullName, setFullName] = useState('');
+
+  // Admin Modal States
+  const [showAdminPasswordModal, setShowAdminPasswordModal] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput]         = useState('');
+  const [modalError, setModalError]                         = useState('');
+
+  // Live-detect role as user types
+  const detectedRole = email ? detectRoleFromEmail(email) : null;
+
+  const roleColor = { admin: '#f59e0b', instructor: '#a78bfa', student: '#34d399' };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setError('');
+
     if (!email || !password) {
       setError('Please fill in all fields.');
       return;
     }
 
-    login(email, password, role);
+    const role = detectRoleFromEmail(email);
 
-    if (role === 'instructor') {
-      navigate('/instructor');
-    } else if (role === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/dashboard');
+    if (role === 'admin') {
+      // Admin requires an extra authorization step
+      setShowAdminPasswordModal(true);
+      return;
     }
+
+    const userData = login(email, password);
+    if (userData.role === 'instructor') navigate('/instructor');
+    else navigate('/dashboard');
   };
 
-  const handleQuickDemo = (demoRole) => {
-    login('', '', demoRole);
-    if (demoRole === 'instructor') {
-      navigate('/instructor');
-    } else if (demoRole === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/dashboard');
+  const handleAdminModalSubmit = (e) => {
+    e.preventDefault();
+    setModalError('');
+    if (adminPasswordInput !== 'Admin123') {
+      setModalError('Incorrect administrative password.');
+      return;
     }
+    setShowAdminPasswordModal(false);
+    login(email, adminPasswordInput, isRegistering ? fullName : '');
+    navigate('/admin');
   };
 
   return (
     <section className="login-page">
       <div className="login-container">
-        {/* LEFT SIDE */}
+
+        {/* ── LEFT SIDE ── */}
         <div className="login-info">
-          <Link to="/" className="logo">
-            Code<span>Learn</span>
-          </Link>
+          <Link to="/" className="logo">Code<span>Learn</span></Link>
+
+          <div className="login-logo-wrap">
+            <img src={codelearnLogo} alt="CodeLearn Logo" className="login-logo-img" />
+          </div>
+
           <h1>Welcome Back!</h1>
           <p>
-            Access your personalized learning portal, manage courses, track student progress, or administrate the platform.
+            Access your personalized learning portal, manage courses, track
+            student progress, or administrate the platform.
           </p>
 
           <div className="login-features">
             <div>
-              <strong>🎓</strong>
+              <strong><PiStudentBold className="role-icon" /></strong>
               <span><strong>Student Portal:</strong> Access interactive lessons, labs, and grades</span>
             </div>
             <div>
-              <strong>👨‍🏫</strong>
-              <span><strong>Instructor Portal:</strong> Manage courses, review labs & grade students</span>
+              <strong><FaChalkboardTeacher className="role-icon" /></strong>
+              <span><strong>Instructor Portal:</strong> Manage courses, review labs &amp; grade students</span>
             </div>
             <div>
-              <strong>🛡️</strong>
-              <span><strong>Admin Portal:</strong> User management, platform metrics & system settings</span>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '28px', background: 'rgba(59, 130, 246, 0.1)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-            <h4 style={{ fontSize: '14px', marginBottom: '8px', color: '#60a5fa' }}>⚡ Quick Demo Logins:</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button
-                type="button"
-                className="btn btn-outline btn-small"
-                onClick={() => handleQuickDemo('student')}
-                style={{ justifyContent: 'flex-start', background: 'rgba(15, 23, 42, 0.6)' }}
-              >
-                🎓 Login as Demo Student (Alex Johnson)
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline btn-small"
-                onClick={() => handleQuickDemo('instructor')}
-                style={{ justifyContent: 'flex-start', background: 'rgba(15, 23, 42, 0.6)' }}
-              >
-                👨‍🏫 Login as Demo Instructor (Dr. Sarah Jenkins)
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline btn-small"
-                onClick={() => handleQuickDemo('admin')}
-                style={{ justifyContent: 'flex-start', background: 'rgba(15, 23, 42, 0.6)' }}
-              >
-                🛡️ Login as Demo Admin (System Admin)
-              </button>
+              <strong><MdAdminPanelSettings className="role-icon" /></strong>
+              <span><strong>Admin Portal:</strong> User management, platform metrics &amp; system settings</span>
             </div>
           </div>
         </div>
 
-        {/* RIGHT SIDE */}
+        {/* ── RIGHT SIDE ── */}
         <div className="login-card">
           <div className="login-heading">
-            <h2>Sign In</h2>
-            <p>Select your portal role and enter your login details.</p>
+            <h2>{isRegistering ? 'Admin Registration' : 'Sign In'}</h2>
+            <p>
+              {isRegistering
+                ? 'Register a new administrative account.'
+                : 'Enter your email and we will direct you to the right dashboard.'}
+            </p>
           </div>
 
           {error && (
-            <div style={{ background: 'rgba(244, 63, 94, 0.15)', color: '#f87171', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '10px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
+            <div style={{ background: 'rgba(244,63,94,0.15)', color: '#f87171', border: '1px solid rgba(244,63,94,0.3)', padding: '10px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
               {error}
             </div>
           )}
 
           <form id="loginForm" onSubmit={handleSubmit}>
-            <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#94a3b8' }}>
-                1. SELECT PORTAL ROLE
-              </label>
-              <div style={{ display: 'flex', gap: '8px', background: '#090d16', padding: '4px', borderRadius: '8px', border: '1px solid #24344d' }}>
-                <button
-                  type="button"
-                  className={`btn ${role === 'student' ? 'btn-primary' : 'btn-outline'}`}
-                  onClick={() => handleRoleSelect('student')}
-                  style={{ flex: 1, padding: '8px 4px', fontSize: '13px', border: role === 'student' ? 'none' : 'transparent' }}
-                >
-                  🎓 Student
-                </button>
-                <button
-                  type="button"
-                  className={`btn ${role === 'instructor' ? 'btn-primary' : 'btn-outline'}`}
-                  onClick={() => handleRoleSelect('instructor')}
-                  style={{ flex: 1, padding: '8px 4px', fontSize: '13px', border: role === 'instructor' ? 'none' : 'transparent' }}
-                >
-                  👨‍🏫 Instructor
-                </button>
-                <button
-                  type="button"
-                  className={`btn ${role === 'admin' ? 'btn-primary' : 'btn-outline'}`}
-                  onClick={() => handleRoleSelect('admin')}
-                  style={{ flex: 1, padding: '8px 4px', fontSize: '13px', border: role === 'admin' ? 'none' : 'transparent' }}
-                >
-                  🛡️ Admin
-                </button>
-              </div>
-            </div>
 
+            {isRegistering && (
+              <div className="form-group">
+                <label htmlFor="fullName">Full Name</label>
+                <input
+                  type="text"
+                  id="fullName"
+                  className="form-control"
+                  placeholder="Enter your full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            {/* Email — role is inferred from this */}
             <div className="form-group">
               <label htmlFor="email">Email Address</label>
               <input
@@ -166,6 +150,16 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              {/* Live role hint */}
+              {detectedRole && (
+                <div style={{ marginTop: '6px', fontSize: '12px', color: roleColor[detectedRole], display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {detectedRole === 'admin'      && <MdAdminPanelSettings />}
+                  {detectedRole === 'instructor' && <FaChalkboardTeacher />}
+                  {detectedRole === 'student'    && <PiStudentBold />}
+                  Detected as&nbsp;<strong style={{ textTransform: 'capitalize' }}>{detectedRole}</strong>
+                  &nbsp;&mdash; you will be directed to the {detectedRole} dashboard.
+                </div>
+              )}
             </div>
 
             <div className="form-group">
@@ -182,28 +176,94 @@ export default function Login() {
             </div>
 
             <div className="login-options">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input type="checkbox" defaultChecked /> Remember me
-              </label>
-              <a href="#forgot" onClick={(e) => { e.preventDefault(); alert('Password reset instructions sent to your email.'); }}>Forgot Password?</a>
+              {!isRegistering && (
+                <>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                    <input type="checkbox" defaultChecked /> Remember me
+                  </label>
+                  <a href="#forgot" onClick={(e) => { e.preventDefault(); alert('Password reset instructions sent to your email.'); }}>
+                    Forgot Password?
+                  </a>
+                </>
+              )}
             </div>
 
             <button type="submit" className="btn btn-primary login-btn">
-              Login to {role.charAt(0).toUpperCase() + role.slice(1)} Dashboard →
+              {isRegistering ? 'Register Admin Account \u2192' : 'Login \u2192'}
             </button>
           </form>
 
           <div className="register-link">
             <p>
-              Don't have an account? <Link to="/register">Create an account</Link>
+              {isRegistering ? (
+                <>Already have an account?&nbsp;
+                  <a href="#signin" onClick={(e) => { e.preventDefault(); setIsRegistering(false); }}>Sign In</a>
+                </>
+              ) : (
+                <>Don&rsquo;t have an account?&nbsp;<Link to="/register">Create an account</Link></>
+              )}
             </p>
           </div>
 
           <div className="back-home">
-            <Link to="/">← Back to Home</Link>
+            <Link to="/">\u2190 Back to Home</Link>
           </div>
         </div>
       </div>
+
+      {/* ── ADMIN PASSWORD MODAL ── */}
+      {showAdminPasswordModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '400px', background: '#131c2e', padding: '24px', border: '1px solid #3b82f6', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '20px', color: '#fff' }}>
+                <MdAdminPanelSettings className="role-icon" /> Admin Authorization
+              </h2>
+              <button
+                type="button"
+                onClick={() => { setShowAdminPasswordModal(false); setAdminPasswordInput(''); setModalError(''); }}
+                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
+              >
+                \u2715
+              </button>
+            </div>
+
+            {modalError && (
+              <div style={{ background: 'rgba(244,63,94,0.15)', color: '#f87171', border: '1px solid rgba(244,63,94,0.3)', padding: '10px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+                {modalError}
+              </div>
+            )}
+
+            <form onSubmit={handleAdminModalSubmit}>
+              <div className="form-group" style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#94a3b8' }}>
+                  Please enter the master admin password:
+                </label>
+                <input
+                  type="password"
+                  className="form-control"
+                  placeholder="Enter Admin Password"
+                  value={adminPasswordInput}
+                  onChange={(e) => setAdminPasswordInput(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowAdminPasswordModal(false); setAdminPasswordInput(''); setModalError(''); }}
+                  className="btn btn-outline"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">Authorize \u2192</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

@@ -222,6 +222,27 @@ button, input, select, textarea {
   justify-content: space-between;
 }
 
+@keyframes logoAlive {
+  0% {
+    transform: translateY(0) scale(1);
+    text-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.04);
+    text-shadow: 0 0 35px rgba(59, 130, 246, 1), 0 0 15px rgba(59, 130, 246, 0.8);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    text-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+  }
+}
+
+@keyframes spanGlow {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.5) hue-rotate(25deg); text-shadow: 0 0 20px rgba(59, 130, 246, 0.9); }
+  100% { filter: brightness(1); }
+}
+
 .logo {
   font-size: 22px;
   font-weight: 800;
@@ -230,10 +251,25 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   gap: 6px;
+  animation: logoAlive 3s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+.logo:hover {
+  transform: scale(1.05);
+  animation-play-state: paused;
 }
 
 .logo span {
   color: var(--primary);
+  animation: spanGlow 3s ease-in-out infinite;
+}
+
+.logo img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 6px;
 }
 
 .nav-links, .dashboard-links {
@@ -721,7 +757,7 @@ button, input, select, textarea {
 
 
 /* ===== CERTIFICATES & SIDEBAR ===== */
-.certificates-page, .learning-paths-page, .mycourses-page, .settings-page {
+.certificates-page, .learning-paths-page, .mycourses-page, .settings-page, .dashboard-layout {
   display: flex;
   min-height: 100vh;
   background: var(--bg-dark);
@@ -737,6 +773,10 @@ button, input, select, textarea {
   flex-direction: column;
   border-right: 1px solid var(--border-color);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar .logo {
@@ -1146,7 +1186,23 @@ button, input, select, textarea {
 
 .login-info .logo {
   font-size: 26px;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
+}
+
+.login-logo-wrap {
+  margin-bottom: 28px;
+  display: flex;
+  justify-content: center;
+}
+
+.login-logo-img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 24px;
+  border: 2px solid rgba(59, 130, 246, 0.45);
+  box-shadow: 0 0 28px rgba(59, 130, 246, 0.3), 0 8px 24px rgba(0, 0, 0, 0.5);
+  display: block;
 }
 
 .login-info h1 {
@@ -1541,6 +1597,438 @@ input:checked + .slider:before {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+
+/* ===== COURSES PAGE ===== */
+
+/* Page header */
+.courses-page .page-header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 40px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.courses-page .page-header span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.courses-page .page-header h1 {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.courses-page .page-header p {
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+/* Course grid */
+.course-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+/* Individual course card */
+.learning-course.card {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  position: relative;
+}
+
+.learning-course.card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+/* Accent top bar — defaults to blue, overridden per language below */
+.learning-course.card::before {
+  content: '';
+  display: block;
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #3b82f6, #06b6d4);
+  flex-shrink: 0;
+}
+
+/* HTML — orange/amber */
+.learning-course.card:has(.html-icon)::before {
+  background: linear-gradient(90deg, #f97316, #fb923c);
+}
+.learning-course.card:has(.html-icon) {
+  border-color: rgba(249, 115, 22, 0.2);
+}
+
+/* CSS — violet */
+.learning-course.card:has(.css-icon)::before {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+.learning-course.card:has(.css-icon) {
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+/* JavaScript — amber/yellow */
+.learning-course.card:has(.js-icon)::before {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+.learning-course.card:has(.js-icon) {
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+/* React — cyan */
+.learning-course.card:has(.react-icon)::before {
+  background: linear-gradient(90deg, #06b6d4, #38bdf8);
+}
+.learning-course.card:has(.react-icon) {
+  border-color: rgba(6, 182, 212, 0.2);
+}
+
+/* Card top row: icon + badge */
+.learning-course-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 0;
+}
+
+/* Language icon */
+.learning-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.html-icon  { background: rgba(249, 115, 22, 0.12); border-color: rgba(249, 115, 22, 0.25); }
+.css-icon   { background: rgba(139, 92, 246, 0.12);  border-color: rgba(139, 92, 246, 0.25); }
+.js-icon    { background: rgba(245, 158, 11, 0.12);  border-color: rgba(245, 158, 11, 0.25); }
+.react-icon { background: rgba(6, 182, 212, 0.12);   border-color: rgba(6, 182, 212, 0.25); }
+
+/* Card body */
+.learning-course.card h2 {
+  font-size: 19px;
+  font-weight: 700;
+  padding: 16px 24px 4px;
+  margin: 0;
+}
+
+.learning-course.card > p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  padding: 0 24px 16px;
+  margin: 0;
+}
+
+/* Details row (modules / lessons / exercises) */
+.learning-course.card .course-details {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 24px 18px;
+}
+
+.learning-course.card .course-details span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+/* Progress block */
+.learning-course.card .course-progress {
+  padding: 0 24px 18px;
+}
+
+.learning-course.card .progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.learning-course.card .progress-info strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.learning-course.card .progress-bar {
+  height: 6px;
+}
+
+/* Accent-coloured progress fills */
+.learning-course.card:has(.html-icon) .progress-fill {
+  background: linear-gradient(90deg, #f97316, #fb923c);
+}
+.learning-course.card:has(.css-icon) .progress-fill {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+.learning-course.card:has(.js-icon) .progress-fill {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+.learning-course.card:has(.react-icon) .progress-fill {
+  background: linear-gradient(90deg, #06b6d4, #38bdf8);
+}
+
+/* CTA button — full width at bottom */
+.learning-course.card .btn {
+  margin: 0 24px 24px;
+  width: calc(100% - 48px);
+}
+
+/* Locked state dim */
+.learning-course.card:has(button[disabled]) {
+  opacity: 0.7;
+}
+.learning-course.card:has(button[disabled]):hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--border-color);
+}
+
+/* Footer */
+footer {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
+  padding: 32px 0;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.footer-content h3 {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.footer-content h3 span {
+  color: var(--primary);
+}
+
+.footer-content p {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+
+/* ===== LESSON VIDEO CARD ===== */
+.card.lesson-video {
+  padding: 0;
+  overflow: hidden;
+  border-color: rgba(59, 130, 246, 0.25);
+  background: linear-gradient(145deg, #131c2e 0%, #0f1a2e 100%);
+}
+
+.card.lesson-video .section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.card.lesson-video .section-title h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.lesson-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--primary);
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+}
+
+.video-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  padding: 5px 14px;
+}
+
+.video-placeholder {
+  margin: 24px 28px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 2px solid var(--border-color);
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  padding: 36px 24px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.video-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 40%, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.video-placeholder:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08), var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.play-button {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+}
+
+.video-placeholder:hover .play-button {
+  transform: scale(1.1);
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.6);
+}
+
+.video-placeholder h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.video-placeholder p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 380px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+
+/* ===== TUTORIAL SECTION CARD ===== */
+.card.tutorial-section {
+  padding: 28px 32px;
+  background: linear-gradient(145deg, #131c2e 0%, #111827 100%);
+  border-color: rgba(16, 185, 129, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.card.tutorial-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #10b981 0%, #06b6d4 100%);
+  border-radius: 14px 14px 0 0;
+}
+
+.card.tutorial-section > .lesson-label {
+  color: var(--accent-emerald);
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.25);
+  margin-bottom: 10px;
+}
+
+.card.tutorial-section h2 {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+
+.card.tutorial-section h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 24px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card.tutorial-section > p {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.75;
+  margin-bottom: 12px;
+}
+
+.code-example {
+  background: #090d16;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.code-example pre {
+  margin: 0;
+  padding: 20px 24px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: #7dd3fc;
+}
+
+.code-example code {
+  font-family: inherit;
 }
 
 

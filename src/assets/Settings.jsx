@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Sidebar from '../components/Sidebar';
 
 const Settings = () => {
   // Profile state
@@ -78,36 +79,7 @@ const Settings = () => {
   return (
     <div className="settings-page">
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="logo">
-          <span className="logo-icon">💻</span>
-          <span className="logo-text">CodeLearn</span>
-        </div>
-
-        <nav className="nav">
-          <a href="#" className="nav-item">
-            <span>🏠</span> Dashboard
-          </a>
-          <a href="#" className="nav-item">
-            <span>📚</span> My Courses
-          </a>
-          <a href="#" className="nav-item">
-            <span>🔥</span> Learning Paths
-          </a>
-          <a href="#" className="nav-item">
-            <span>🏆</span> Certificates
-          </a>
-          <a href="#" className="nav-item active">
-            <span>⚙️</span> Settings
-          </a>
-        </nav>
-
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={handleLogout}>
-            Log Out
-          </button>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main Content */}
       <main className="main-content">
