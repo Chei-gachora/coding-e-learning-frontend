@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCourses } from '../context/CourseContext';
 import logo from '../assets/codelearn_logo.jpg';
 import { IoBookSharp } from "react-icons/io5";
 import { FaLaptopCode } from "react-icons/fa6";
@@ -29,28 +30,14 @@ export default function InstructorDashboard() {
   const [newItemTitle, setNewItemTitle] = useState('');
   const [notification, setNotification] = useState('');
 
-  const [courses, setCourses] = useState(() => {
-    const saved = localStorage.getItem(`codelearn_instructor_courses_${user?.id}`);
-    return saved ? JSON.parse(saved) : [
-      { id: 1, title: 'HTML Fundamentals', students: 65, progress: 72 },
-      { id: 2, title: 'CSS Fundamentals', students: 54, progress: 48 },
-      { id: 3, title: 'JavaScript Essentials', students: 38, progress: 31 },
-      { id: 4, title: 'React Web Development', students: 29, progress: 15 }
-    ];
-  });
+  const { courses, addCourse } = useCourses();
 
-  // Sync state to localStorage for independent sessions
+  // Sync submissions to localStorage for independent sessions
   useEffect(() => {
     if (user?.id) {
       localStorage.setItem(`codelearn_instructor_submissions_${user.id}`, JSON.stringify(submissions));
     }
   }, [submissions, user?.id]);
-
-  useEffect(() => {
-    if (user?.id) {
-      localStorage.setItem(`codelearn_instructor_courses_${user.id}`, JSON.stringify(courses));
-    }
-  }, [courses, user?.id]);
 
   const handleOpenGradeModal = (sub) => {
     setGradingSubmission(sub);
@@ -73,12 +60,13 @@ export default function InstructorDashboard() {
     e.preventDefault();
     if (!newItemTitle) return;
     if (activeModal === 'course') {
-      setCourses([...courses, { id: Date.now(), title: newItemTitle, students: 0, progress: 0 }]);
+      addCourse(newItemTitle, newItemDescription);
       showTempNotification(`New course "${newItemTitle}" created! 📚`);
     } else {
       showTempNotification(`New ${activeModal} "${newItemTitle}" published! 🚀`);
     }
     setNewItemTitle('');
+    setNewItemDescription('');
     setActiveModal(null);
   };
 
@@ -112,7 +100,7 @@ export default function InstructorDashboard() {
               <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc', border: '1px solid rgba(139, 92, 246, 0.4)', marginBottom: '8px' }}>
                 👨‍🏫 INSTRUCTOR PORTAL
               </span>
-              <h1 style={{ fontSize: '28px', marginTop: '6px' }}>Instructor Dashboard</h1>
+              <h1 style={{ fontSize: '28px', marginTop: '6px', color: '#ffffff' }}>Instructor Dashboard</h1>
               <p style={{ color: '#94a3b8', marginTop: '4px' }}>
                 Manage courses, review student code submissions, evaluate daily labs, and guide learners.
               </p>

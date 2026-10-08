@@ -7,8 +7,11 @@ import { IoBookSharp } from "react-icons/io5";
 import { MdViewModule } from "react-icons/md";
 import { FaLaptopCode } from "react-icons/fa6";
 import Sidebar from '../components/Sidebar';
+import { useCourses } from '../context/CourseContext';
 
 export default function Courses() {
+  const { courses } = useCourses();
+
   return (
     <div className="dashboard-layout">
       <Sidebar />
@@ -25,121 +28,41 @@ export default function Courses() {
           </section>
 
           <section className="course-list">
-            {/* HTML */}
-            <div className="learning-course card">
-              <div className="learning-course-top">
-                <div className="learning-icon html-icon"><ImHtmlFive /></div>
-                <span className="badge badge-success">In Progress</span>
-              </div>
-              <h2>HTML Fundamentals</h2>
-              <p>
-                Learn the structure and building blocks of modern websites using HTML.
-              </p>
-              <div className="course-details">
-                <span><MdViewModule />6 Modules</span>
-                <span><IoBookSharp /> 24 Lessons</span>
-                <span><FaLaptopCode /> 30 Exercises</span>
-              </div>
-              <div className="course-progress">
-                <div className="progress-info">
-                  <span>Progress</span>
-                  <strong>45%</strong>
+            {courses.map((course) => (
+              <div key={course.id} className="learning-course card">
+                <div className="learning-course-top">
+                  <div className="learning-icon" style={{ fontSize: '32px' }}>
+                    {/* Choose an icon based on course slug or title */}
+                    {course.slug.includes('html') && <ImHtmlFive />}
+                    {course.slug.includes('css') && <SiCss />}
+                    {course.slug.includes('javascript') && <IoLogoJavascript />}
+                    {course.slug.includes('react') && <SiCss />}
+                    {/* Default fallback icon */}
+                    {!['html', 'css', 'javascript', 'react'].some(k => course.slug.includes(k)) && <GiPadlock />}
+                  </div>
+                  <span className="badge badge-success">{course.status === 'in-progress' ? 'In Progress' : 'Not Started'}</span>
                 </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: '45%' }}></div>
+                <h2>{course.title}</h2>
+                <p>{course.description}</p>
+                <div className="course-details">
+                  <span><MdViewModule /> {course.modules || 0} Modules</span>
+                  <span><IoBookSharp /> {course.lessons || 0} Lessons</span>
+                  <span><FaLaptopCode /> {course.exercises || 0} Exercises</span>
                 </div>
-              </div>
-              <Link to="/lesson" className="btn btn-primary">
-                Continue Course
-              </Link>
-            </div>
-
-            {/* CSS */}
-            <div className="learning-course card">
-              <div className="learning-course-top">
-                <div className="learning-icon css-icon"><SiCss /></div>
-                <span className="badge badge-warning">Not Started</span>
-              </div>
-              <h2>CSS Fundamentals</h2>
-              <p>
-                Learn how to style websites and create responsive and attractive interfaces.
-              </p>
-              <div className="course-details">
-                <span><MdViewModule /> 5 Modules</span>
-                <span><IoBookSharp /> 20 Lessons</span>
-                <span><FaLaptopCode /> 25 Exercises</span>
-              </div>
-              <div className="course-progress">
-                <div className="progress-info">
-                  <span>Progress</span>
-                  <strong>0%</strong>
+                <div className="course-progress">
+                  <div className="progress-info">
+                    <span>Progress</span>
+                    <strong>{course.progress}%</strong>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${course.progress}%` }}></div>
+                  </div>
                 </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: '0%' }}></div>
-                </div>
+                <Link to={`/lesson?course=${course.slug}`} className="btn btn-primary">
+                  {course.progress > 0 ? 'Continue Course' : 'Start Course'}
+                </Link>
               </div>
-              <Link to="/lesson" className="btn btn-outline">
-                Start Course
-              </Link>
-            </div>
-
-            {/* JAVASCRIPT */}
-            <div className="learning-course card">
-              <div className="learning-course-top">
-                <div className="learning-icon js-icon"><IoLogoJavascript /></div>
-                <span className="badge badge-danger"><GiPadlock /> Locked</span>
-              </div>
-              <h2>JavaScript</h2>
-              <p>
-                Add interactivity and functionality to your websites using JavaScript.
-              </p>
-              <div className="course-details">
-                <span><MdViewModule /> 8 Modules</span>
-                <span><IoBookSharp /> 32 Lessons</span>
-                <span><FaLaptopCode /> 40 Exercises</span>
-              </div>
-              <div className="course-progress">
-                <div className="progress-info">
-                  <span>Progress</span>
-                  <strong>0%</strong>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: '0%' }}></div>
-                </div>
-              </div>
-              <button className="btn btn-outline" disabled>
-                <GiPadlock /> Locked
-              </button>
-            </div>
-
-            {/* REACT */}
-            <div className="learning-course card">
-              <div className="learning-course-top">
-                <div className="learning-icon react-icon"><SiCss /></div>
-                <span className="badge badge-danger"><GiPadlock /> Locked</span>
-              </div>
-              <h2>React</h2>
-              <p>
-                Build modern interactive user interfaces using React.
-              </p>
-              <div className="course-details">
-                <span><MdViewModule /> 6 Modules</span>
-                <span><IoBookSharp /> 28 Lessons</span>
-                <span><FaLaptopCode /> 35 Exercises</span>
-              </div>
-              <div className="course-progress">
-                <div className="progress-info">
-                  <span>Progress</span>
-                  <strong>0%</strong>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: '0%' }}></div>
-                </div>
-              </div>
-              <button className="btn btn-outline" disabled>
-                <GiPadlock /> Locked
-              </button>
-            </div>
+            ))}
           </section>
         </div>
       </main>

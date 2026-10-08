@@ -116,7 +116,7 @@ export default function Login() {
           </div>
 
           {error && (
-            <div style={{ background: 'rgba(244,63,94,0.15)', color: '#f87171', border: '1px solid rgba(244,63,94,0.3)', padding: '10px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
+            <div style={{ background: 'rgba(198, 205, 233, 0.92)', color: '#f87171', border: '1px solid rgba(244,63,94,0.3)', padding: '10px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
               {error}
             </div>
           )}
@@ -189,7 +189,7 @@ export default function Login() {
             </div>
 
             <button type="submit" className="btn btn-primary login-btn">
-              {isRegistering ? 'Register Admin Account \u2192' : 'Login \u2192'}
+              {isRegistering ? 'Register Admin Account →' : 'Login →'}
             </button>
           </form>
 
@@ -206,7 +206,7 @@ export default function Login() {
           </div>
 
           <div className="back-home">
-            <Link to="/">\u2190 Back to Home</Link>
+            <Link to="/">← Back to Home</Link>
           </div>
         </div>
       </div>
@@ -224,7 +224,7 @@ export default function Login() {
                 onClick={() => { setShowAdminPasswordModal(false); setAdminPasswordInput(''); setModalError(''); }}
                 style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
               >
-                \u2715
+                ✕
               </button>
             </div>
 
@@ -258,7 +258,7 @@ export default function Login() {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">Authorize \u2192</button>
+                <button type="submit" className="btn btn-primary">Authorize →</button>
               </div>
             </form>
           </div>

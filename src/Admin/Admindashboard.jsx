@@ -121,7 +121,7 @@ export default function AdminDashboard() {
               <span className="badge" style={{ background: 'rgba(244, 63, 94, 0.2)', color: '#fda4af', border: '1px solid rgba(244, 63, 94, 0.4)', marginBottom: '8px' }}>
                 🛡️ ADMIN PORTAL
               </span>
-              <h1 style={{ fontSize: '28px', marginTop: '6px' }}>Administrator Dashboard</h1>
+              <h1 style={{ fontSize: '28px', marginTop: '6px', color: '#ffffff' }}>Administrator Dashboard</h1>
               <p style={{ color: '#94a3b8', marginTop: '4px' }}>
                 Manage users, system configurations, course platform settings, and platform analytics.
               </p>

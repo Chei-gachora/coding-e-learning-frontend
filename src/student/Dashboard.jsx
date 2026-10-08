@@ -97,7 +97,7 @@ export default function StudentDashboard() {
           <section className="welcome-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, #131c2e 0%, #1e293b 100%)', padding: '28px', borderRadius: '16px', border: '1px solid #24344d', marginBottom: '28px' }}>
             <div>
               <span className="badge badge-success" style={{ marginBottom: '10px' }}>🎓 STUDENT PORTAL</span>
-              <h1 style={{ fontSize: '28px', marginTop: '6px' }}>Welcome back, {userName}! <FaHandsClapping /></h1>
+              <h1 style={{ fontSize: '28px', marginTop: '6px', color: '#ffffff' }}>Welcome back, {userName}! <FaHandsClapping /></h1>
               <p style={{ color: '#94a3b8', marginTop: '4px' }}>
                 Track your course progress, complete daily labs, and build real-world coding projects.
               </p>
