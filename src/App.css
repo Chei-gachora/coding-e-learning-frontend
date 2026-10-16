@@ -33,6 +33,229 @@
   --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.25);
 }
 
+/* ===== LIGHT THEME ===== */
+[data-theme="light"] {
+  --bg-dark: #f0f4f8;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-secondary: #e2e8f0;
+  --border-color: #cbd5e1;
+  --border-hover: #3b82f6;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-light: rgba(59, 130, 246, 0.1);
+
+  --accent-cyan: #0891b2;
+  --accent-purple: #7c3aed;
+  --accent-emerald: #059669;
+  --accent-amber: #d97706;
+  --accent-rose: #e11d48;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.12);
+}
+
+[data-theme="light"] .navbar,
+[data-theme="light"] .dashboard-navbar {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .sidebar {
+  background: #ffffff;
+}
+
+[data-theme="light"] .sidebar .nav-item:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+[data-theme="light"] .sidebar .nav-item.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+[data-theme="light"] .logo {
+  color: #0f172a;
+}
+
+[data-theme="light"] .hero {
+  background: radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 60%);
+}
+
+[data-theme="light"] .code-preview {
+  background: #1e293b;
+}
+
+[data-theme="light"] .code-header {
+  background: #0f172a;
+}
+
+[data-theme="light"] .logout-btn {
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+[data-theme="light"] .logout-btn:hover {
+  background: rgba(244, 63, 94, 0.08);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+[data-theme="light"] .table-header {
+  background: rgba(241, 245, 249, 0.8);
+}
+
+[data-theme="light"] .code-example {
+  background: #1e293b;
+}
+
+[data-theme="light"] .stats-card,
+[data-theme="light"] .activity-item,
+[data-theme="light"] .module-row,
+[data-theme="light"] .lab-card,
+[data-theme="light"] .management-card,
+[data-theme="light"] .admin-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .course-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .course-card:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+/* Light theme login & form styles */
+[data-theme="light"] .login-info {
+  background: #ffffff;
+  border-right: 1px solid var(--border-color);
+}
+
+[data-theme="light"] .login-container {
+  background: #ffffff;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .login-logo-img {
+  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+}
+
+[data-theme="light"] .login-features strong {
+  color: var(--primary);
+}
+
+[data-theme="light"] .form-control,
+[data-theme="light"] .form-group input,
+[data-theme="light"] .form-group textarea,
+[data-theme="light"] .form-group select {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .form-control:focus,
+[data-theme="light"] .form-group input:focus,
+[data-theme="light"] .form-group textarea:focus,
+[data-theme="light"] .form-group select:focus {
+  background: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #f0f4f8;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+/* ===== THEME TOGGLE BUTTON ===== */
+.theme-toggle-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  transform: scale(1.08);
+  box-shadow: var(--shadow-glow);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+.theme-toggle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+.theme-toggle-btn:hover .theme-toggle-icon {
+  transform: rotate(25deg);
+}
+
+/* Sidebar-specific theme toggle (smaller, inline with logo) */
+.sidebar-logo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 36px;
+  padding: 0 8px;
+}
+
+.sidebar-logo-row .logo {
+  margin-bottom: 0;
+}
+
+.sidebar-logo-row .theme-toggle-btn {
+  width: 36px;
+  height: 36px;
+  font-size: 17px;
+  border-radius: 10px;
+}
+
+/* Navbar-specific theme toggle */
+.nav-logo-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-logo-group .theme-toggle-btn {
+  width: 38px;
+  height: 38px;
+  font-size: 18px;
+  border-radius: 10px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -760,6 +983,7 @@ button, input, select, textarea {
 .certificates-page, .learning-paths-page, .mycourses-page, .settings-page, .dashboard-layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
   background: var(--bg-dark);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -773,18 +997,19 @@ button, input, select, textarea {
   flex-direction: column;
   border-right: 1px solid var(--border-color);
   flex-shrink: 0;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  bottom: 0;
   height: 100vh;
   overflow-y: auto;
+  z-index: 50;
 }
 
 .sidebar .logo {
   font-size: 22px;
   font-weight: 800;
   color: var(--text-primary);
-  margin-bottom: 36px;
-  padding: 0 8px;
 }
 
 .sidebar .nav {
@@ -842,6 +1067,9 @@ button, input, select, textarea {
 
 .main-content {
   flex: 1;
+  margin-left: 260px;
+  width: calc(100% - 260px);
+  min-width: 0;
   padding: 36px 40px;
   overflow-y: auto;
 }
@@ -1017,6 +1245,34 @@ button, input, select, textarea {
   margin-top: auto;
 }
 
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable-certificate, .printable-certificate * {
+    visibility: visible;
+  }
+  .printable-certificate {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 30px;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 3px solid #f59e0b !important;
+  }
+  .printable-certificate h1,
+  .printable-certificate h2 {
+    color: #0f172a !important;
+  }
+  .printable-certificate p {
+    color: #475569 !important;
+  }
+}
+
 
 /* ===== LEARNING PATHS ===== */
 .paths-grid {
@@ -1094,6 +1350,36 @@ button, input, select, textarea {
   color: #94a3b8;
 }
 
+.status-badge.locked {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.path-card.locked {
+  opacity: 0.75;
+  border-color: rgba(51, 65, 85, 0.6);
+  background: rgba(19, 28, 46, 0.6);
+}
+
+.path-card.locked:hover {
+  transform: none;
+  border-color: rgba(51, 65, 85, 0.8);
+  box-shadow: none;
+}
+
+.path-btn.locked {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #64748b !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+
 .path-card h3 {
   font-size: 20px;
   font-weight: 700;
@@ -1150,6 +1436,11 @@ button, input, select, textarea {
   cursor: pointer;
   transition: all 0.2s ease;
   margin-top: auto;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 
@@ -2048,11 +2339,13 @@ footer {
 }
 
 @media (max-width: 850px) {
-  .certificates-page, .learning-paths-page, .mycourses-page, .settings-page {
+  .certificates-page, .learning-paths-page, .mycourses-page, .settings-page, .dashboard-layout {
     flex-direction: column;
   }
   .sidebar {
+    position: static;
     width: 100%;
+    height: auto;
     flex-direction: row;
     overflow-x: auto;
     padding: 12px 16px;
@@ -2061,6 +2354,8 @@ footer {
     flex-direction: row;
   }
   .main-content {
+    margin-left: 0;
+    width: 100%;
     padding: 20px;
   }
   .course-item {

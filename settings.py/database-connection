@@ -1,0 +1,12 @@
+DATABASES = {
+    'default': {
+        'ENGINE': 'mssql',
+        'NAME': 'master',                   
+        'HOST': 'localhost',
+        'PORT': '',                         
+        'OPTIONS': {
+            'driver': 'ODBC Driver 18 for SQL Server',
+            'extra_params': 'Trusted_Connection=yes;TrustServerCertificate=yes',
+        },
+    }
+}

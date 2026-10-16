@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCourses } from '../context/CourseContext';
 import logo from '../assets/codelearn_logo.jpg';
 import { IoBookSharp } from "react-icons/io5";
 import Sidebar from '../components/Sidebar';
 
 export default function AdminDashboard() {
   const { user, logout, switchRole } = useAuth();
+  const { courses } = useCourses();
   const navigate = useNavigate();
 
   // User Management State
@@ -121,7 +123,7 @@ export default function AdminDashboard() {
               <span className="badge" style={{ background: 'rgba(244, 63, 94, 0.2)', color: '#fda4af', border: '1px solid rgba(244, 63, 94, 0.4)', marginBottom: '8px' }}>
                 🛡️ ADMIN PORTAL
               </span>
-              <h1 style={{ fontSize: '28px', marginTop: '6px' }}>Administrator Dashboard</h1>
+              <h1 style={{ fontSize: '28px', marginTop: '6px', color: '#ffffff' }}>Administrator Dashboard</h1>
               <p style={{ color: '#94a3b8', marginTop: '4px' }}>
                 Manage users, system configurations, course platform settings, and platform analytics.
               </p>
@@ -151,7 +153,7 @@ export default function AdminDashboard() {
 
             <div className="admin-stat card" style={{ padding: '20px' }}>
               <span style={{ color: '#94a3b8', fontSize: '13px' }}>Courses</span>
-              <strong style={{ display: 'block', fontSize: '26px', margin: '4px 0' }}>8</strong>
+              <strong style={{ display: 'block', fontSize: '26px', margin: '4px 0' }}>{courses.length}</strong>
               <small style={{ color: '#c084fc' }}>Available courses</small>
             </div>
 
@@ -365,7 +367,7 @@ export default function AdminDashboard() {
                     <button onClick={() => handleChangeRole(u.id, 'admin')} disabled={u.role === 'admin'} className="btn btn-small btn-outline" style={{ fontSize: '10px', padding: '2px 6px', opacity: u.role === 'admin' ? 0.4 : 1 }}>Admin</button>
                   </div>
                   <div>
-                    <button onClick={() => handleDeleteUser(u.id)} className="btn btn-small btn-outline" style={{ color: '#ef4444', borderColor: '#ef4444' }}>Delete</button>
+                    <button onClick={() => handleDeleteUser(u.id)} className="btn btn-small btn-outline" style={{ color: '#ef4444', borderColor: '#ef4444' }}>deactivate</button>
                   </div>
                 </div>
               ))}
@@ -431,28 +433,21 @@ export default function AdminDashboard() {
               <button onClick={() => setShowCoursesModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}>✕</button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#090d16', borderRadius: '8px' }}>
-                <div>
-                  <strong>HTML &amp; Web Fundamentals</strong>
-                  <p style={{ fontSize: '12px', color: '#94a3b8' }}>Instructor: Dr. Sarah hadasa | 65 Students</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px', maxHeight: '350px', overflowY: 'auto' }}>
+              {courses.map(course => (
+                <div key={course.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#090d16', borderRadius: '8px', borderLeft: course.isNew ? '3px solid #8b5cf6' : undefined }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <strong>{course.title}</strong>
+                      {course.isNew && <span className="badge" style={{ background: '#8b5cf6', color: '#fff', fontSize: '10px', padding: '2px 6px' }}>NEW</span>}
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0' }}>
+                      Instructor: {course.instructor || 'Instructor'} | {course.students || 0} Students | {course.level || 'Beginner'}
+                    </p>
+                  </div>
+                  <span className="badge badge-success">Published</span>
                 </div>
-                <span className="badge badge-success">Published</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#090d16', borderRadius: '8px' }}>
-                <div>
-                  <strong>CSS Layouts &amp; Animations</strong>
-                  <p style={{ fontSize: '12px', color: '#94a3b8' }}>Instructor: Dr. Sarah hadasa | 54 Students</p>
-                </div>
-                <span className="badge badge-success">Published</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#090d16', borderRadius: '8px' }}>
-                <div>
-                  <strong>JavaScript Algorithms</strong>
-                  <p style={{ fontSize: '12px', color: '#94a3b8' }}>Instructor: Prof. David Miller | 38 Students</p>
-                </div>
-                <span className="badge badge-success">Published</span>
-              </div>
+              ))}
             </div>
 
             <div style={{ textAlign: 'right' }}>

@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { MdDashboardCustomize } from "react-icons/md";
 import { FaDiscourse } from "react-icons/fa";
 import { FaBookReader } from "react-icons/fa";
-import { BsFire } from "react-icons/bs";
+import { BsFire, BsSunFill, BsMoonStarsFill } from "react-icons/bs";
 import { PiCertificateFill } from "react-icons/pi";
 import { FaSyringe } from "react-icons/fa";
 import { GiTrophyCup } from "react-icons/gi";
@@ -13,6 +14,7 @@ import { CgProfile } from "react-icons/cg";
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = () => {
     logout();
@@ -46,10 +48,20 @@ const Sidebar = () => {
 
   return (
     <aside className="sidebar">
-      <div className="logo">
-          <Link to="/" className="logo">
-            Code<span>Learn</span>
-          </Link>
+      <div className="sidebar-logo-row">
+        <Link to="/" className="logo">
+          Code<span>Learn</span>
+        </Link>
+        <button
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          <span className="theme-toggle-icon">
+            {theme === 'dark' ? <BsSunFill /> : <BsMoonStarsFill />}
+          </span>
+        </button>
       </div>
 
       <nav className="nav">
