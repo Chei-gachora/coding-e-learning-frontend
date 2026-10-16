@@ -29,25 +29,31 @@ export default function Courses() {
 
           <section className="course-list">
             {courses.map((course) => (
-              <div key={course.id} className="learning-course card">
+              <div key={course.id} className="learning-course card" style={{ borderLeft: course.isNew ? '4px solid #8b5cf6' : undefined }}>
                 <div className="learning-course-top">
                   <div className="learning-icon" style={{ fontSize: '32px' }}>
-                    {/* Choose an icon based on course slug or title */}
-                    {course.slug.includes('html') && <ImHtmlFive />}
-                    {course.slug.includes('css') && <SiCss />}
-                    {course.slug.includes('javascript') && <IoLogoJavascript />}
-                    {course.slug.includes('react') && <SiCss />}
-                    {/* Default fallback icon */}
-                    {!['html', 'css', 'javascript', 'react'].some(k => course.slug.includes(k)) && <GiPadlock />}
+                    {/* Choose an icon based on course slug or title, or thumbnail emoji */}
+                    {course.slug?.includes('html') ? <ImHtmlFive /> :
+                     course.slug?.includes('css') ? <SiCss /> :
+                     course.slug?.includes('javascript') ? <IoLogoJavascript /> :
+                     course.slug?.includes('react') ? <SiCss /> :
+                     (course.thumbnail || <IoBookSharp />)}
                   </div>
-                  <span className="badge badge-success">{course.status === 'in-progress' ? 'In Progress' : 'Not Started'}</span>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    {course.isNew && (
+                      <span className="badge" style={{ background: '#8b5cf6', color: '#fff', fontSize: '11px', padding: '2px 8px' }}>NEW</span>
+                    )}
+                    <span className={`badge ${course.status === 'in-progress' ? 'badge-success' : course.status === 'completed' ? 'badge-success' : 'badge-outline'}`}>
+                      {course.status === 'in-progress' ? 'In Progress' : course.status === 'completed' ? 'Completed' : 'Not Started'}
+                    </span>
+                  </div>
                 </div>
                 <h2>{course.title}</h2>
                 <p>{course.description}</p>
                 <div className="course-details">
-                  <span><MdViewModule /> {course.modules || 0} Modules</span>
-                  <span><IoBookSharp /> {course.lessons || 0} Lessons</span>
-                  <span><FaLaptopCode /> {course.exercises || 0} Exercises</span>
+                  <span><MdViewModule /> {course.modules || 4} Modules</span>
+                  <span><IoBookSharp /> {course.lessons || course.totalLessons || 12} Lessons</span>
+                  <span><FaLaptopCode /> {course.exercises || 8} Exercises</span>
                 </div>
                 <div className="course-progress">
                   <div className="progress-info">

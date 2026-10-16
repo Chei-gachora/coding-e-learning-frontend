@@ -1,21 +1,22 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { coursesData } from '../data/coursesData';
+import { useCourses } from '../context/CourseContext';
 
 const MyCourses = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Use the central courses catalog data
-  const courses = coursesData;
+  // Use the central reactive courses catalog
+  const { courses } = useCourses();
 
   // Filter courses
-  const filteredCourses = courses.filter((course) => {
+  const filteredCourses = (courses || []).filter((course) => {
+    const status = course.status || 'not-started';
     const matchesFilter =
-      activeFilter === 'all' || course.status === activeFilter;
+      activeFilter === 'all' || status === activeFilter;
 
-    const matchesSearch = course.title
+    const matchesSearch = (course.title || '')
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
 
@@ -31,7 +32,7 @@ const MyCourses = () => {
       case 'not-started':
         return 'Not Started';
       default:
-        return status;
+        return status || 'Not Started';
     }
   };
 
@@ -97,38 +98,43 @@ const MyCourses = () => {
             </div>
           ) : (
             filteredCourses.map((course) => (
-              <div key={course.id} className="course-item">
+              <div key={course.id} className="course-item" style={{ borderLeft: course.isNew ? '4px solid #8b5cf6' : undefined }}>
                 <div className="course-left">
                   <Link
                     to={`/lesson?course=${course.slug}`}
                     className="course-thumb"
-                    style={{ textDecoration: 'none', cursor: 'pointer' }}
+                    style={{ textDecoration: 'none', cursor: 'pointer', fontSize: '28px' }}
                     title={`Go to ${course.title}`}
                   >
-                    {course.thumbnail}
+                    {course.thumbnail || '📘'}
                   </Link>
 
                   <div className="course-details">
                     <div className="course-top">
-                      <Link
-                        to={`/lesson?course=${course.slug}`}
-                        style={{ textDecoration: 'none', color: 'inherit' }}
-                      >
-                        <h3 style={{ transition: 'color 0.2s' }}>{course.title}</h3>
-                      </Link>
-                      <span className={`status-badge ${course.status}`}>
-                        {getStatusLabel(course.status)}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Link
+                          to={`/lesson?course=${course.slug}`}
+                          style={{ textDecoration: 'none', color: 'inherit' }}
+                        >
+                          <h3 style={{ transition: 'color 0.2s', margin: 0 }}>{course.title}</h3>
+                        </Link>
+                        {course.isNew && (
+                          <span className="badge" style={{ background: '#8b5cf6', color: '#fff', fontSize: '11px', padding: '2px 8px' }}>NEW</span>
+                        )}
+                      </div>
+                      <span className={`status-badge ${course.status || 'not-started'}`}>
+                        {getStatusLabel(course.status || 'not-started')}
                       </span>
                     </div>
-                    <p className="instructor">by {course.instructor}</p>
+                    <p className="instructor">by {course.instructor || 'Dr. Sarah Jenkins'}</p>
                     <div className="course-meta">
-                      <span>{course.level}</span>
+                      <span>{course.level || 'Beginner'}</span>
                       <span>•</span>
                       <span>
-                        {course.completedLessons}/{course.totalLessons} lessons
+                        {course.completedLessons || 0}/{course.totalLessons || course.lessons || 12} lessons
                       </span>
                       <span>•</span>
-                      <span>Last accessed: {course.lastAccessed}</span>
+                      <span>Last accessed: {course.lastAccessed || 'Recently added'}</span>
                     </div>
 
                     {/* Progress bar */}
@@ -136,10 +142,10 @@ const MyCourses = () => {
                       <div className="progress-bar">
                         <div
                           className="progress-fill"
-                          style={{ width: `${course.progress}%` }}
+                          style={{ width: `${course.progress || 0}%` }}
                         ></div>
                       </div>
-                      <span className="progress-percent">{course.progress}%</span>
+                      <span className="progress-percent">{course.progress || 0}%</span>
                     </div>
                   </div>
                 </div>

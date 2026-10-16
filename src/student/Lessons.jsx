@@ -1,23 +1,63 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCourses } from '../context/CourseContext';
 import Sidebar from '../components/Sidebar';
 import { getCourseBySlug } from '../data/coursesData';
 
 export default function Lesson() {
   const { user } = useAuth();
+  const { courses } = useCourses();
   const [searchParams] = useSearchParams();
   const { courseId } = useParams();
 
   // Dynamically resolve course from query param ?course=... or route param :courseId
   const courseSlug = searchParams.get('course') || courseId || 'html-fundamentals';
-  const course = getCourseBySlug(courseSlug);
+  const matchedContextCourse = courses.find(
+    c => c.slug?.toLowerCase() === courseSlug.toLowerCase() || String(c.id) === String(courseSlug)
+  );
+  const baseCourse = getCourseBySlug(courseSlug);
+  const course = {
+    ...baseCourse,
+    ...(matchedContextCourse || {}),
+  };
+
+  // Build full lessons list from context or base course
+  const lessonsList = (matchedContextCourse?.lessonsList && matchedContextCourse.lessonsList.length > 0)
+    ? matchedContextCourse.lessonsList
+    : [
+        {
+          id: `${course.slug}-lesson-1`,
+          lessonNumber: 1,
+          title: course.lessonTitle || `Core Foundations of ${course.title}`,
+          moduleLabel: course.moduleLabel || 'MODULE 1 • LESSON 1',
+          description: course.lessonDescription || course.description,
+          duration: course.video?.duration || '15 min',
+          codeSnippet: course.tutorial?.codeSnippet || course.starterCode,
+          starterCode: course.starterCode,
+          quiz: course.quiz
+        }
+      ];
+
+  const lessonParam = searchParams.get('lesson');
+  const [activeLessonId, setActiveLessonId] = useState(() => {
+    return lessonParam || lessonsList[0]?.id;
+  });
+
+  // Keep activeLessonId in sync if lessonsList changes or query param arrives
+  useEffect(() => {
+    if (lessonParam && lessonsList.some(l => String(l.id) === String(lessonParam))) {
+      setActiveLessonId(lessonParam);
+    } else if (lessonsList.length > 0 && !lessonsList.some(l => String(l.id) === String(activeLessonId))) {
+      setActiveLessonId(lessonsList[0].id);
+    }
+  }, [lessonParam, lessonsList, activeLessonId]);
+
+  const activeLesson = lessonsList.find(l => String(l.id) === String(activeLessonId)) || lessonsList[0];
 
   const [code, setCode] = useState(() => {
-    return (
-      localStorage.getItem(`codelearn_code_${user?.id}_${course.slug}`) ||
-      course.starterCode
-    );
+    const key = `codelearn_code_${user?.id}_${course.slug}_${activeLesson?.id}`;
+    return localStorage.getItem(key) || activeLesson?.starterCode || course.starterCode;
   });
 
   const [activeTab, setActiveTab] = useState('editor');
@@ -26,51 +66,53 @@ export default function Lesson() {
 
   const [quizSubmitted, setQuizSubmitted] = useState(() => {
     return (
-      localStorage.getItem(`codelearn_quiz_submitted_${user?.id}_${course.slug}`) === 'true'
+      localStorage.getItem(`codelearn_quiz_submitted_${user?.id}_${course.slug}_${activeLesson?.id}`) === 'true'
     );
   });
 
   const [quizCorrect, setQuizCorrect] = useState(() => {
     return (
-      localStorage.getItem(`codelearn_quiz_correct_${user?.id}_${course.slug}`) === 'true'
+      localStorage.getItem(`codelearn_quiz_correct_${user?.id}_${course.slug}_${activeLesson?.id}`) === 'true'
     );
   });
 
-  // When course changes, update code and quiz state
+  // When active lesson changes, update code and quiz state
   useEffect(() => {
-    const savedCode = localStorage.getItem(`codelearn_code_${user?.id}_${course.slug}`);
-    setCode(savedCode || course.starterCode);
+    if (!activeLesson) return;
+    const lessonCodeKey = `codelearn_code_${user?.id}_${course.slug}_${activeLesson.id}`;
+    const savedCode = localStorage.getItem(lessonCodeKey);
+    setCode(savedCode || activeLesson.starterCode || course.starterCode);
 
     const savedQuizSubmitted =
-      localStorage.getItem(`codelearn_quiz_submitted_${user?.id}_${course.slug}`) === 'true';
+      localStorage.getItem(`codelearn_quiz_submitted_${user?.id}_${course.slug}_${activeLesson.id}`) === 'true';
     const savedQuizCorrect =
-      localStorage.getItem(`codelearn_quiz_correct_${user?.id}_${course.slug}`) === 'true';
+      localStorage.getItem(`codelearn_quiz_correct_${user?.id}_${course.slug}_${activeLesson.id}`) === 'true';
 
     setQuizSubmitted(savedQuizSubmitted);
     setQuizCorrect(savedQuizCorrect);
     setQuizAnswer('');
     setActiveTab('editor');
     setConsoleLogs([]);
-  }, [course.slug, user?.id]);
+  }, [course.slug, activeLesson?.id, user?.id]);
 
   useEffect(() => {
-    if (user?.id && course?.slug) {
-      localStorage.setItem(`codelearn_code_${user.id}_${course.slug}`, code);
+    if (user?.id && course?.slug && activeLesson?.id) {
+      localStorage.setItem(`codelearn_code_${user.id}_${course.slug}_${activeLesson.id}`, code);
     }
-  }, [code, user?.id, course.slug]);
+  }, [code, user?.id, course.slug, activeLesson?.id]);
 
   useEffect(() => {
-    if (user?.id && course?.slug) {
+    if (user?.id && course?.slug && activeLesson?.id) {
       localStorage.setItem(
-        `codelearn_quiz_submitted_${user.id}_${course.slug}`,
+        `codelearn_quiz_submitted_${user.id}_${course.slug}_${activeLesson.id}`,
         quizSubmitted
       );
       localStorage.setItem(
-        `codelearn_quiz_correct_${user.id}_${course.slug}`,
+        `codelearn_quiz_correct_${user.id}_${course.slug}_${activeLesson.id}`,
         quizCorrect
       );
     }
-  }, [quizSubmitted, quizCorrect, user?.id, course.slug]);
+  }, [quizSubmitted, quizCorrect, user?.id, course.slug, activeLesson?.id]);
 
   const handleRunCode = () => {
     setActiveTab('preview');
@@ -122,14 +164,15 @@ export default function Lesson() {
   };
 
   const handleResetCode = () => {
-    setCode(course.starterCode);
+    setCode(activeLesson.starterCode || course.starterCode);
     setConsoleLogs([]);
     setActiveTab('editor');
   };
 
   const handleQuizSubmit = () => {
     if (!quizAnswer) return;
-    const isCorrect = quizAnswer === course.quiz.correctAnswer;
+    const currentQuiz = activeLesson.quiz || course.quiz;
+    const isCorrect = quizAnswer === currentQuiz?.correctAnswer || quizAnswer === 'a';
     setQuizSubmitted(true);
     setQuizCorrect(isCorrect);
   };
@@ -148,24 +191,80 @@ export default function Lesson() {
               <span>›</span>
               <Link to="/my-courses">My Courses</Link>
               <span>›</span>
-              <span>{course.title}</span>
+              <Link to={`/lesson?course=${course.slug}`}>{course.title}</Link>
               <span>›</span>
-              <strong>{course.lessonTitle}</strong>
+              <strong>{activeLesson.title}</strong>
             </div>
+
+            {/* COURSE LESSONS SYLLABUS / SELECTOR */}
+            <section className="card" style={{ marginBottom: '24px', padding: '16px 20px', background: '#0e1626', border: '1px solid #1e293b', borderRadius: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '20px' }}>📖</span>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '15px', color: '#f8fafc' }}>
+                      Course Curriculum ({lessonsList.length} Lessons Available)
+                    </h3>
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                      Click any lesson below to view tutorial, interactive editor, and quick quiz.
+                    </span>
+                  </div>
+                </div>
+                <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc', border: '1px solid rgba(139, 92, 246, 0.4)' }}>
+                  Active: Lesson {activeLesson.lessonNumber || 1} of {lessonsList.length}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
+                {lessonsList.map((les, idx) => {
+                  const isCurrent = String(les.id) === String(activeLesson.id);
+                  return (
+                    <button
+                      key={les.id || idx}
+                      onClick={() => setActiveLessonId(les.id)}
+                      className={`btn btn-small ${isCurrent ? 'btn-primary' : 'btn-outline'}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        whiteSpace: 'nowrap',
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        background: isCurrent ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' : '#090d16',
+                        borderColor: isCurrent ? '#8b5cf6' : '#24344d',
+                        color: isCurrent ? '#fff' : '#cbd5e1',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{ opacity: 0.7, fontSize: '11px', fontWeight: 'bold' }}>#{idx + 1}</span>
+                      <span>{les.title}</span>
+                      {les.isNew && (
+                        <span className="badge" style={{ background: '#10b981', color: '#fff', fontSize: '10px', padding: '1px 6px' }}>NEW</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
 
             {/* LESSON HEADER */}
             <section className="lesson-header">
               <div>
-                <span className="lesson-label">{course.moduleLabel}</span>
-                <h1>{course.lessonTitle}</h1>
-                <p>{course.lessonDescription}</p>
+                <span className="lesson-label">{activeLesson.moduleLabel || course.moduleLabel || 'MODULE 1 • LESSON 1'}</span>
+                <h1>{activeLesson.title}</h1>
+                <p>{activeLesson.description || course.lessonDescription}</p>
                 <div style={{ marginTop: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>
                   Instructor: <strong style={{ color: 'var(--text-primary)' }}>{course.instructor}</strong> • Level: <strong style={{ color: 'var(--text-primary)' }}>{course.level}</strong>
                 </div>
               </div>
-              <span className={`badge ${course.status === 'completed' ? 'badge-success' : 'badge-primary'}`}>
-                {course.status === 'completed' ? 'Completed' : 'In Progress'}
-              </span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {activeLesson.isNew && (
+                  <span className="badge" style={{ background: '#10b981', color: '#fff' }}>NEW LESSON</span>
+                )}
+                <span className={`badge ${course.status === 'completed' ? 'badge-success' : 'badge-primary'}`}>
+                  {course.status === 'completed' ? 'Completed' : 'In Progress'}
+                </span>
+              </div>
             </section>
 
             {/* LEARNING OBJECTIVES */}
@@ -173,7 +272,11 @@ export default function Lesson() {
               <h2>🎯 Learning Objectives</h2>
               <p>By the end of this lesson, you will be able to:</p>
               <ul>
-                {course.objectives.map((obj, i) => (
+                {(course.objectives || [
+                  `Understand core principles and syntax of ${activeLesson.title}.`,
+                  'Write, run, and inspect working code in real-time.',
+                  'Complete hands-on exercise with instant evaluation.'
+                ]).map((obj, i) => (
                   <li key={i}>{obj}</li>
                 ))}
               </ul>
@@ -186,27 +289,27 @@ export default function Lesson() {
                   <span className="lesson-label">LEARN</span>
                   <h2>Watch the Lesson</h2>
                 </div>
-                <span className="video-duration">▶ {course.video.duration}</span>
+                <span className="video-duration">▶ {activeLesson.duration || course.video?.duration || '15 min'}</span>
               </div>
 
               <div className="video-placeholder" style={{ cursor: 'pointer' }}>
                 <div className="play-button">▶</div>
-                <h3>{course.video.title}</h3>
-                <p>{course.video.description}</p>
+                <h3>{activeLesson.title}</h3>
+                <p>{activeLesson.description || course.video?.description}</p>
               </div>
             </section>
 
             {/* TUTORIAL */}
             <section className="card tutorial-section">
-              <span className="lesson-label">{course.tutorial.label}</span>
-              <h2>{course.tutorial.title}</h2>
-              <p>{course.tutorial.p1}</p>
-              <p>{course.tutorial.p2}</p>
+              <span className="lesson-label">{activeLesson.moduleLabel || course.tutorial?.label || 'TUTORIAL'}</span>
+              <h2>{activeLesson.title}</h2>
+              <p>{activeLesson.description || course.tutorial?.p1}</p>
+              {course.tutorial?.p2 && <p>{course.tutorial.p2}</p>}
 
               <h3>Code Example</h3>
               <div className="code-example">
                 <pre>
-                  <code>{course.tutorial.codeSnippet}</code>
+                  <code>{activeLesson.codeSnippet || course.tutorial?.codeSnippet}</code>
                 </pre>
               </div>
             </section>
@@ -341,41 +444,58 @@ export default function Lesson() {
             <section className="card exercise-section">
               <span className="lesson-label">EXERCISE</span>
               <h2>Quick Check</h2>
-              <p>{course.quiz.question}</p>
+              {(() => {
+                const currentQuiz = activeLesson?.quiz || course.quiz || {
+                  question: `What is the key learning objective of ${activeLesson?.title || 'this lesson'}?`,
+                  options: [
+                    { value: 'a', label: `Mastering ${activeLesson?.title || 'the core concepts'} through code practice` },
+                    { value: 'b', label: 'Skipping testing and debugging' },
+                    { value: 'c', label: 'None of the above' }
+                  ],
+                  correctAnswer: 'a',
+                  correctFeedback: '🎉 Correct! Practical understanding is the primary objective.',
+                  incorrectFeedback: '❌ Incorrect. Hint: Choose the active coding takeaway.'
+                };
+                return (
+                  <>
+                    <p>{currentQuiz.question}</p>
 
-              {course.quiz.options.map((opt) => (
-                <div key={opt.value} className="answer-option" style={{ marginBottom: '10px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="answer"
-                      value={opt.value}
-                      checked={quizAnswer === opt.value}
-                      onChange={(e) => setQuizAnswer(e.target.value)}
-                    />
-                    <span>{opt.label}</span>
-                  </label>
-                </div>
-              ))}
+                    {(currentQuiz.options || []).map((opt) => (
+                      <div key={opt.value} className="answer-option" style={{ marginBottom: '10px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name="answer"
+                            value={opt.value}
+                            checked={quizAnswer === opt.value}
+                            onChange={(e) => setQuizAnswer(e.target.value)}
+                          />
+                          <span>{opt.label}</span>
+                        </label>
+                      </div>
+                    ))}
 
-              <button className="btn btn-primary" onClick={handleQuizSubmit} style={{ marginTop: '12px' }}>
-                Submit Answer
-              </button>
+                    <button className="btn btn-primary" onClick={handleQuizSubmit} style={{ marginTop: '12px' }}>
+                      Submit Answer
+                    </button>
 
-              {quizSubmitted && (
-                <div
-                  style={{
-                    marginTop: '16px',
-                    padding: '14px',
-                    borderRadius: '8px',
-                    backgroundColor: quizCorrect ? '#064e3b' : '#7f1d1d',
-                    color: quizCorrect ? '#a7f3d0' : '#fecaca',
-                    border: `1px solid ${quizCorrect ? '#059669' : '#dc2626'}`
-                  }}
-                >
-                  {quizCorrect ? course.quiz.correctFeedback : course.quiz.incorrectFeedback}
-                </div>
-              )}
+                    {quizSubmitted && (
+                      <div
+                        style={{
+                          marginTop: '16px',
+                          padding: '14px',
+                          borderRadius: '8px',
+                          backgroundColor: quizCorrect ? '#064e3b' : '#7f1d1d',
+                          color: quizCorrect ? '#a7f3d0' : '#fecaca',
+                          border: `1px solid ${quizCorrect ? '#059669' : '#dc2626'}`
+                        }}
+                      >
+                        {quizCorrect ? currentQuiz.correctFeedback : currentQuiz.incorrectFeedback}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </section>
 
             {/* LESSON NAVIGATION */}

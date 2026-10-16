@@ -731,9 +731,80 @@ console.log("Index of 40:", binarySearch(sortedList, 40));`,
 
 export const getCourseBySlug = (slugOrId) => {
   if (!slugOrId) return coursesData.find(c => c.slug === 'html-fundamentals') || coursesData[0];
+  
+  // 1. Check static predefined catalog
   const found = coursesData.find(c => 
     c.slug.toLowerCase() === String(slugOrId).toLowerCase() || 
     String(c.id) === String(slugOrId)
   );
-  return found || coursesData.find(c => c.slug === 'html-fundamentals') || coursesData[0];
+  if (found) return found;
+
+  // 2. Check dynamic courses created by instructor in localStorage
+  try {
+    const saved = localStorage.getItem('codelearn_global_courses');
+    if (saved) {
+      const dynamicList = JSON.parse(saved);
+      const match = dynamicList.find(c =>
+        c.slug?.toLowerCase() === String(slugOrId).toLowerCase() ||
+        String(c.id) === String(slugOrId)
+      );
+      if (match) {
+        return {
+          ...match,
+          moduleLabel: 'MODULE 1 • LESSON 1',
+          lessonTitle: `Introduction to ${match.title}`,
+          lessonDescription: match.description || `Welcome to ${match.title}. Complete the interactive lessons and coding challenge below.`,
+          objectives: [
+            `Understand the core foundations of ${match.title}.`,
+            'Write and test real-time code in the interactive console.',
+            'Solve practical coding tasks with instant feedback.',
+            'Track your progress and earn certification upon completion.'
+          ],
+          video: {
+            duration: '15 min',
+            title: `Getting Started with ${match.title}`,
+            description: `Instructor-led introduction and interactive walkthrough for ${match.title}.`
+          },
+          tutorial: {
+            label: 'TUTORIAL',
+            title: `Getting Started with ${match.title}`,
+            p1: match.description || `Welcome to ${match.title}! In this course, you will learn through interactive lessons and practical exercises.`,
+            p2: 'Use the code editor on the right to test your code. Check the console output in real-time.',
+            codeSnippet: `// 🚀 Welcome to ${match.title}\nconsole.log("Welcome to ${match.title}!");`
+          },
+          starterCode: `// 🚀 Welcome to ${match.title}!\nconsole.log("Ready to learn ${match.title}!");\n\nfunction startCourse() {\n  return "Course in progress";\n}\n\nconsole.log(startCourse());`,
+          codeType: 'javascript',
+          previewType: 'console',
+          quiz: {
+            question: `What is the primary objective of studying ${match.title}?`,
+            options: [
+              { value: 'a', label: `Mastering ${match.title} through practical coding` },
+              { value: 'b', label: 'Skipping practical development' },
+              { value: 'c', label: 'Memorizing without practice' },
+              { value: 'd', label: 'None of the above' }
+            ],
+            correctAnswer: 'a',
+            correctFeedback: `🎉 Correct! Mastering ${match.title} through practice is the goal.`,
+            incorrectFeedback: '❌ Incorrect. Hint: Choose the active learning approach.'
+          },
+          exercise: {
+            moduleLabel: 'MODULE 1 • CODING EXERCISE',
+            taskTitle: `First ${match.title} Coding Task`,
+            taskDescription: `Run your first code snippet in ${match.title} using console.log.`,
+            expectedResult: `Ready to learn ${match.title}!`,
+            requirements: [
+              'Use console.log to print a message.',
+              'Verify output in the live console.'
+            ],
+            starterCode: `console.log("Ready to learn ${match.title}!");`,
+            validator: (code) => code.toLowerCase().includes('console.log')
+          }
+        };
+      }
+    }
+  } catch (e) {
+    console.error('Error fetching custom course:', e);
+  }
+
+  return coursesData.find(c => c.slug === 'html-fundamentals') || coursesData[0];
 };

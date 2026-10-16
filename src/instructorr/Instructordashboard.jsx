@@ -28,9 +28,17 @@ export default function InstructorDashboard() {
 
   const [activeModal, setActiveModal] = useState(null); // 'course' | 'lesson' | 'exercise' | 'lab'
   const [newItemTitle, setNewItemTitle] = useState('');
+  const [newItemDescription, setNewItemDescription] = useState('');
+  const [newItemLevel, setNewItemLevel] = useState('Beginner');
+  const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [newItemModule, setNewItemModule] = useState('');
+  const [newItemCode, setNewItemCode] = useState('');
+  const [newItemExpected, setNewItemExpected] = useState('');
+  const [expandedCourseId, setExpandedCourseId] = useState(null);
+  const [expandedTab, setExpandedTab] = useState('lessons'); // 'lessons' | 'exercises'
   const [notification, setNotification] = useState('');
 
-  const { courses, addCourse } = useCourses();
+  const { courses, addCourse, addLesson, addExercise } = useCourses();
 
   // Sync submissions to localStorage for independent sessions
   useEffect(() => {
@@ -58,15 +66,50 @@ export default function InstructorDashboard() {
 
   const handleCreateContent = (e) => {
     e.preventDefault();
-    if (!newItemTitle) return;
+    if (!newItemTitle.trim()) return;
+
     if (activeModal === 'course') {
-      addCourse(newItemTitle, newItemDescription);
-      showTempNotification(`New course "${newItemTitle}" created! 📚`);
+      addCourse(newItemTitle.trim(), newItemDescription.trim(), {
+        level: newItemLevel,
+        instructor: instructorName,
+      });
+      showTempNotification(`New course "${newItemTitle.trim()}" created successfully! Now visible in All Courses and Course Performance Overview. 📚🎉`);
+    } else if (activeModal === 'lesson') {
+      const courseIdToUse = selectedCourseId || (courses[0]?.id || '');
+      const targetCourse = courses.find(c => String(c.id) === String(courseIdToUse) || c.slug === courseIdToUse) || courses[0];
+      if (courseIdToUse) {
+        addLesson(courseIdToUse, {
+          title: newItemTitle.trim(),
+          description: newItemDescription.trim(),
+          moduleLabel: newItemModule.trim(),
+          starterCode: newItemCode.trim(),
+        });
+        showTempNotification(`New lesson "${newItemTitle.trim()}" added to "${targetCourse?.title || 'Course'}"! Visible in Course Performance Overview & Student Lessons. 📖✨`);
+      }
+    } else if (activeModal === 'exercise') {
+      const courseIdToUse = selectedCourseId || (courses[0]?.id || '');
+      const targetCourse = courses.find(c => String(c.id) === String(courseIdToUse) || c.slug === courseIdToUse) || courses[0];
+      if (courseIdToUse) {
+        addExercise(courseIdToUse, {
+          title: newItemTitle.trim(),
+          description: newItemDescription.trim(),
+          moduleLabel: newItemModule.trim(),
+          expectedResult: newItemExpected.trim(),
+          starterCode: newItemCode.trim(),
+        });
+        showTempNotification(`New coding exercise "${newItemTitle.trim()}" added to "${targetCourse?.title || 'Course'}"! Visible in Course Performance Overview & Student Exercises. 💻🎉`);
+      }
     } else {
-      showTempNotification(`New ${activeModal} "${newItemTitle}" published! 🚀`);
+      showTempNotification(`New ${activeModal} "${newItemTitle.trim()}" published! 🚀`);
     }
+
     setNewItemTitle('');
     setNewItemDescription('');
+    setNewItemLevel('Beginner');
+    setSelectedCourseId('');
+    setNewItemModule('');
+    setNewItemCode('');
+    setNewItemExpected('');
     setActiveModal(null);
   };
 
@@ -223,25 +266,247 @@ export default function InstructorDashboard() {
 
           {/* STUDENT PROGRESS OVERVIEW */}
           <section className="student-progress-section" style={{ marginBottom: '32px' }}>
-            <div className="section-heading" style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '20px' }}>Course Performance Overview</h2>
+            <div className="section-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '20px' }}>Course Performance Overview</h2>
+                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '4px 0 0' }}>Real-time student enrollment and cohort completion statistics.</p>
+              </div>
+              <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc', border: '1px solid rgba(139, 92, 246, 0.4)' }}>
+                {courses.length} Total Courses
+              </span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {courses.map((course) => (
-                <div key={course.id} className="card" style={{ padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <strong style={{ fontSize: '16px', display: 'block' }}>{course.title}</strong>
-                    <span style={{ fontSize: '13px', color: '#94a3b8' }}>{course.students} students enrolled</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', width: '300px' }}>
-                    <div style={{ flex: 1, height: '8px', background: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: `${course.progress}%`, height: '100%', background: '#8b5cf6' }}></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {courses.map((course) => {
+                const isExpanded = expandedCourseId === course.id;
+                const lessonsCount = course.lessons || course.totalLessons || course.lessonsList?.length || 1;
+                const exercisesCount = course.exercises || course.exercisesList?.length || 1;
+                return (
+                  <div
+                    key={course.id}
+                    className="card"
+                    style={{
+                      padding: '20px 24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      borderLeft: course.isNew ? '4px solid #8b5cf6' : course.hasNewExercise ? '4px solid #0284c7' : course.hasNewLesson ? '4px solid #10b981' : undefined,
+                      transition: 'transform 0.2s ease, border-color 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ fontSize: '26px', background: 'rgba(139, 92, 246, 0.1)', width: '46px', height: '46px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {course.thumbnail || '📘'}
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <strong style={{ fontSize: '16px' }}>{course.title}</strong>
+                            {course.isNew && (
+                              <span className="badge" style={{ background: '#8b5cf6', color: '#fff', fontSize: '11px', padding: '2px 8px' }}>NEW COURSE</span>
+                            )}
+                            {course.hasNewLesson && (
+                              <span className="badge badge-success" style={{ fontSize: '11px', padding: '2px 8px' }}>+ NEW LESSON</span>
+                            )}
+                            {course.hasNewExercise && (
+                              <span className="badge" style={{ background: '#0284c7', color: '#fff', fontSize: '11px', padding: '2px 8px' }}>+ NEW EXERCISE</span>
+                            )}
+                            <span className="badge" style={{ fontSize: '11px', background: 'rgba(255, 255, 255, 0.05)', color: '#94a3b8' }}>
+                              {course.level || 'Beginner'}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '13px', color: '#94a3b8', display: 'block', marginTop: '3px' }}>
+                            {course.students} students enrolled • <strong style={{ color: '#38bdf8' }}>{lessonsCount} lessons</strong> • <strong style={{ color: '#06b6d4' }}>{exercisesCount} exercises</strong>
+                            {course.latestExercise && (
+                              <span style={{ color: '#0284c7', marginLeft: '8px' }}>• Latest Ex: {course.latestExercise}</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '200px' }}>
+                          <div style={{ flex: 1, height: '8px', background: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${course.progress}%`, height: '100%', background: '#8b5cf6', transition: 'width 0.4s ease' }}></div>
+                          </div>
+                          <strong style={{ fontSize: '14px', width: '38px', textAlign: 'right' }}>{course.progress}%</strong>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            onClick={() => {
+                              setSelectedCourseId(course.id);
+                              setActiveModal('lesson');
+                            }}
+                            className="btn btn-small btn-outline"
+                            style={{ borderColor: '#8b5cf6', color: '#c084fc', padding: '6px 10px' }}
+                            title="Add a new lesson to this course"
+                          >
+                            + Lesson
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedCourseId(course.id);
+                              setActiveModal('exercise');
+                            }}
+                            className="btn btn-small btn-outline"
+                            style={{ borderColor: '#0284c7', color: '#38bdf8', padding: '6px 10px' }}
+                            title="Add a new coding exercise to this course"
+                          >
+                            + Exercise
+                          </button>
+                          <button
+                            onClick={() => setExpandedCourseId(isExpanded ? null : course.id)}
+                            className="btn btn-small btn-outline"
+                            style={{ background: isExpanded ? 'rgba(139, 92, 246, 0.15)' : 'transparent', padding: '6px 10px' }}
+                          >
+                            {isExpanded ? 'Hide ▲' : 'View Curriculum ▼'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <strong style={{ fontSize: '14px', width: '40px', textAlign: 'right' }}>{course.progress}%</strong>
+
+                    {/* EXPANDED CONTENT DRAWER */}
+                    {isExpanded && (
+                      <div style={{ marginTop: '8px', paddingTop: '14px', borderTop: '1px solid #1e293b' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={() => setExpandedTab('lessons')}
+                              className={`btn btn-small ${expandedTab === 'lessons' ? 'btn-primary' : 'btn-outline'}`}
+                              style={{ padding: '4px 12px', fontSize: '12px' }}
+                            >
+                              📖 Lessons ({course.lessonsList?.length || 1})
+                            </button>
+                            <button
+                              onClick={() => setExpandedTab('exercises')}
+                              className={`btn btn-small ${expandedTab === 'exercises' ? 'btn-primary' : 'btn-outline'}`}
+                              style={{ padding: '4px 12px', fontSize: '12px' }}
+                            >
+                              💻 Exercises ({course.exercisesList?.length || 1})
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <Link
+                              to={`/lesson?course=${course.slug}`}
+                              style={{ fontSize: '12px', color: '#8b5cf6', textDecoration: 'none' }}
+                            >
+                              Open Lessons Workspace →
+                            </Link>
+                            <Link
+                              to={`/exercise?course=${course.slug}`}
+                              style={{ fontSize: '12px', color: '#38bdf8', textDecoration: 'none' }}
+                            >
+                              Open Exercises Workspace →
+                            </Link>
+                          </div>
+                        </div>
+
+                        {expandedTab === 'lessons' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {(course.lessonsList && course.lessonsList.length > 0 ? course.lessonsList : [
+                              {
+                                id: 'default-1',
+                                lessonNumber: 1,
+                                moduleLabel: 'MODULE 1 • LESSON 1',
+                                title: `Core Foundations of ${course.title}`,
+                                description: course.description
+                              }
+                            ]).map((lesson, idx) => (
+                              <div
+                                key={lesson.id || idx}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: '10px 14px',
+                                  background: '#090d16',
+                                  borderRadius: '8px',
+                                  border: '1px solid #1e293b'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#1e293b', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>
+                                    {idx + 1}
+                                  </span>
+                                  <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <strong style={{ fontSize: '14px', color: '#f8fafc' }}>{lesson.title}</strong>
+                                      {lesson.isNew && (
+                                        <span className="badge" style={{ background: '#10b981', color: '#fff', fontSize: '10px', padding: '1px 6px' }}>NEW</span>
+                                      )}
+                                    </div>
+                                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                                      {lesson.moduleLabel || `Module 1 • Lesson ${idx + 1}`} • {lesson.description?.slice(0, 60)}...
+                                    </span>
+                                  </div>
+                                </div>
+                                <Link
+                                  to={`/lesson?course=${course.slug}&lesson=${lesson.id}`}
+                                  className="btn btn-small btn-outline"
+                                  style={{ fontSize: '12px', padding: '4px 10px' }}
+                                >
+                                  Preview Lesson →
+                                </Link>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {(course.exercisesList && course.exercisesList.length > 0 ? course.exercisesList : [
+                              {
+                                id: 'default-ex-1',
+                                exerciseNumber: 1,
+                                moduleLabel: 'MODULE 1 • CODING EXERCISE',
+                                taskTitle: `Practice Challenge for ${course.title}`,
+                                taskDescription: `Complete the coding exercise for ${course.title}.`,
+                                expectedResult: `Output from ${course.title}`
+                              }
+                            ]).map((ex, idx) => (
+                              <div
+                                key={ex.id || idx}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: '10px 14px',
+                                  background: '#090d16',
+                                  borderRadius: '8px',
+                                  border: '1px solid #1e293b'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#0284c7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>
+                                    {idx + 1}
+                                  </span>
+                                  <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <strong style={{ fontSize: '14px', color: '#f8fafc' }}>{ex.taskTitle}</strong>
+                                      {ex.isNew && (
+                                        <span className="badge" style={{ background: '#0284c7', color: '#fff', fontSize: '10px', padding: '1px 6px' }}>NEW EXERCISE</span>
+                                      )}
+                                    </div>
+                                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                                      {ex.moduleLabel || `Module 1 • Exercise ${idx + 1}`} • Expected: "{ex.expectedResult}"
+                                    </span>
+                                  </div>
+                                </div>
+                                <Link
+                                  to={`/exercise?course=${course.slug}&exercise=${ex.id}`}
+                                  className="btn btn-small btn-outline"
+                                  style={{ fontSize: '12px', padding: '4px 10px', borderColor: '#0284c7', color: '#38bdf8' }}
+                                >
+                                  Preview Exercise →
+                                </Link>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         </div>
@@ -307,7 +572,16 @@ export default function InstructorDashboard() {
           <div className="card" style={{ width: '100%', maxWidth: '500px', background: '#131c2e', padding: '24px', border: '1px solid #8b5cf6', borderRadius: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '20px', textTransform: 'capitalize' }}>Create New {activeModal}</h2>
-              <button onClick={() => setActiveModal(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+              <button
+                onClick={() => {
+                  setActiveModal(null);
+                  setNewItemTitle('');
+                  setNewItemDescription('');
+                }}
+                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
             </div>
 
             <form onSubmit={handleCreateContent}>
@@ -320,13 +594,184 @@ export default function InstructorDashboard() {
                   value={newItemTitle}
                   onChange={(e) => setNewItemTitle(e.target.value)}
                   required
+                  autoFocus
                   style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%' }}
                 />
               </div>
 
+              {activeModal === 'course' && (
+                <>
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Description (optional):</label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      placeholder="Brief overview of course concepts and student outcomes..."
+                      value={newItemDescription}
+                      onChange={(e) => setNewItemDescription(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Difficulty Level:</label>
+                    <select
+                      className="form-control"
+                      value={newItemLevel}
+                      onChange={(e) => setNewItemLevel(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%' }}
+                    >
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {activeModal === 'lesson' && (
+                <>
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Select Course to Add Lesson To:</label>
+                    <select
+                      className="form-control"
+                      value={selectedCourseId || (courses[0]?.id || '')}
+                      onChange={(e) => setSelectedCourseId(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%' }}
+                    >
+                      {courses.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.title} ({c.lessons || c.totalLessons || 1} current lessons)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Module / Section Label (optional):</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Module 2 • Lesson 4"
+                      value={newItemModule}
+                      onChange={(e) => setNewItemModule(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%' }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Lesson Overview &amp; Learning Goals (optional):</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      placeholder="Explain what the student will learn in this lesson..."
+                      value={newItemDescription}
+                      onChange={(e) => setNewItemDescription(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Starter Code for Student Practice (optional):</label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      placeholder="// Starter code for student interactive editor..."
+                      value={newItemCode}
+                      onChange={(e) => setNewItemCode(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#38bdf8', fontFamily: 'monospace', padding: '10px', borderRadius: '6px', width: '100%', resize: 'vertical' }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {activeModal === 'exercise' && (
+                <>
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Select Course for Exercise:</label>
+                    <select
+                      className="form-control"
+                      value={selectedCourseId || (courses[0]?.id || '')}
+                      onChange={(e) => setSelectedCourseId(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%' }}
+                    >
+                      {courses.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.title} ({c.exercises || c.exercisesList?.length || 1} exercises)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Module / Section Label (optional):</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. MODULE 2 • CODING EXERCISE"
+                      value={newItemModule}
+                      onChange={(e) => setNewItemModule(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%' }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Task Instructions &amp; Description (optional):</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      placeholder="Specify the coding exercise task, constraints, and instructions..."
+                      value={newItemDescription}
+                      onChange={(e) => setNewItemDescription(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Expected Output / Validation Target (optional):</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Total: $110 or Valid component output"
+                      value={newItemExpected}
+                      onChange={(e) => setNewItemExpected(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px', width: '100%' }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>Starter Code for Solution Editor (optional):</label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      placeholder="// Starter code for student solution..."
+                      value={newItemCode}
+                      onChange={(e) => setNewItemCode(e.target.value)}
+                      style={{ background: '#090d16', border: '1px solid #334155', color: '#38bdf8', fontFamily: 'monospace', padding: '10px', borderRadius: '6px', width: '100%', resize: 'vertical' }}
+                    />
+                  </div>
+                </>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button type="button" onClick={() => setActiveModal(null)} className="btn btn-outline">Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ background: '#8b5cf6' }}>Create {activeModal} →</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveModal(null);
+                    setNewItemTitle('');
+                    setNewItemDescription('');
+                    setSelectedCourseId('');
+                    setNewItemModule('');
+                    setNewItemCode('');
+                    setNewItemExpected('');
+                  }}
+                  className="btn btn-outline"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ background: '#8b5cf6' }}>
+                  Create {activeModal} →
+                </button>
               </div>
             </form>
           </div>
