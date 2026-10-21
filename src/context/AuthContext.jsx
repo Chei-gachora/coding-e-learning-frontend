@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-
+import * as auth from '../lib/auth';
 const AuthContext = createContext();
 
 export const DEFAULT_USERS = {
@@ -108,33 +108,38 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  const login = (email, password, customName = '') => {
-    // Auto-detect role from the email — no manual role selection needed
-    const role = detectRoleFromEmail(email);
-    let userData = DEFAULT_USERS[role] || DEFAULT_USERS.student;
-
-    if (email) {
-      userData = {
-        ...userData,
-        email: email,
-        name:
-          customName ||
-          email.split('@')[0].charAt(0).toUpperCase() +
-            email.split('@')[0].slice(1),
-        avatar: (customName || email)[0].toUpperCase(),
-        role: role,
-        id: 'usr_' + role + '_' + email.toLowerCase().replace(/[^a-z0-9]/g, ''),
-      };
+  const login = async (email, password, customName = '') => {
+    try {
+      const response = await auth.login(email, password, customName);
+      const { access, refresh, user: userData } = response;
+      localStorage.setItem('codelearn_user', JSON.stringify(userData));
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      setUser(userData);
+      return userData;
+    } catch (err) {
+      console.error('Login failed', err);
+      throw err;
     }
-
-    setUser(userData);
-    return userData;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refresh = localStorage.getItem('refresh_token');
+    if (refresh) {
+      await auth.logout(refresh);
+    }
     setUser(null);
     localStorage.removeItem('codelearn_user');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
   };
+
+  // Placeholder for token refresh (no-op for mock)
+  const refreshAccess = async () => {
+    // In a real app, you would call your backend to refresh tokens.
+    return Promise.resolve();
+  };
+
 
   const switchRole = (newRole) => {
     if (DEFAULT_USERS[newRole]) {
@@ -143,7 +148,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, switchRole }}>
+    <AuthContext.Provider value={{ user, login, logout, switchRole, refreshAccess }}>
       {children}
     </AuthContext.Provider>
   );
