@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { MdDashboardCustomize } from "react-icons/md";
@@ -14,10 +15,19 @@ import { CgProfile } from "react-icons/cg";
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const [logoutError, setLogoutError] = useState('');
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async (event) => {
+    event.preventDefault();
+    setLogoutError('');
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      setLogoutError(error.message || 'Unable to sign out. Please try again.');
+    }
   };
 
   const role = user?.role || 'student';
@@ -86,6 +96,7 @@ const Sidebar = () => {
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{role}</span>
           </div>
         </div>
+        {logoutError && <div role="alert" style={{ color: '#f87171' }}>{logoutError}</div>}
         <Link to="/login" onClick={handleLogout} className="logout-btn" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>
           Log Out
         </Link>

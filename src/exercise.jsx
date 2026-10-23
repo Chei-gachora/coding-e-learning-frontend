@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useSearchParams, useParams } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import { getCourseBySlug } from './data/coursesData';
+import { api } from './lib/api';
 
 export default function Exercise() {
   const [searchParams] = useSearchParams();
@@ -10,68 +11,46 @@ export default function Exercise() {
   const courseSlug = searchParams.get('course') || courseId || 'html-fundamentals';
   const course = getCourseBySlug(courseSlug);
 
+  return <ExercisePage key={course.slug} course={course} />;
+}
+
+function ExercisePage({ course }) {
   const [code, setCode] = useState(course.exercise.starterCode);
   const [activeTab, setActiveTab] = useState('editor');
-  const [testPassed, setTestPassed] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
   const [consoleLogs, setConsoleLogs] = useState([]);
+  const [executionError, setExecutionError] = useState('');
+  const [isRunning, setIsRunning] = useState(false);
 
-  useEffect(() => {
-    setCode(course.exercise.starterCode);
-    setTestPassed(null);
-    setSubmitted(false);
-    setActiveTab('editor');
-    setConsoleLogs([]);
-  }, [course.slug]);
-
-  const runTest = () => {
-    const passed = course.exercise.validator(code);
-    setTestPassed(passed);
+  const runTest = async () => {
     setActiveTab('preview');
-
-    if (course.previewType === 'console') {
-      const logs = [];
-      const customConsole = {
-        log: (...args) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
-        error: (...args) => logs.push('❌ ' + args.join(' ')),
-        warn: (...args) => logs.push('⚠️ ' + args.join(' '))
-      };
-      try {
-        if (course.codeType === 'javascript' || course.codeType === 'typescript') {
-          const cleanCode = code
-            .replace(/:\s*(string|number|boolean|any|void|object|string\[\]|number\[\])/g, '')
-            .replace(/interface\s+\w+\s*\{[\s\S]*?\}/g, '');
-          const runner = new Function('console', cleanCode);
-          runner(customConsole);
-        } else if (course.codeType === 'python') {
-          const printMatches = [...code.matchAll(/print\((?:f?["'](.*?)["']|(.*?))\)/g)];
-          if (printMatches.length > 0) {
-            printMatches.forEach(m => logs.push(m[1] || m[2]));
-          } else {
-            logs.push('Python test executed.');
-          }
-        }
-        if (logs.length === 0) {
-          logs.push('Code executed successfully.');
-        }
-      } catch (err) {
-        logs.push(`Runtime Error: ${err.message}`);
-      }
-      setConsoleLogs(logs);
+    setExecutionError('');
+    if (course.previewType !== 'console') return;
+    const language = course.codeType;
+    if (!['javascript', 'python', 'c', 'cpp', 'java'].includes(language)) {
+      setExecutionError(`The isolated runner does not support ${language}.`);
+      return;
     }
-  };
 
-  const handleSubmit = () => {
-    runTest();
-    setSubmitted(true);
+    setIsRunning(true);
+    try {
+      const result = await api.post('/execute/run/', { language, code, stdin: '' });
+      const logs = [result?.stdout, result?.stderr].filter(Boolean);
+      if (result?.timed_out) logs.push('Execution timed out.');
+      else if (result?.exit_code !== 0) logs.push(`Process exited with code ${result?.exit_code}.`);
+      setConsoleLogs(logs.length ? logs : ['Execution completed with no output.']);
+    } catch (error) {
+      setConsoleLogs([]);
+      setExecutionError(error.message || 'Code execution failed.');
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   const handleReset = () => {
     setCode(course.exercise.starterCode);
-    setTestPassed(null);
-    setSubmitted(false);
     setActiveTab('editor');
     setConsoleLogs([]);
+    setExecutionError('');
   };
 
   return (
@@ -99,8 +78,8 @@ export default function Exercise() {
                 <p>{course.exercise.taskDescription}</p>
               </div>
               <div className="exercise-score">
-                <strong>{submitted && testPassed ? '10/10' : '10'}</strong>
-                <span>Points</span>
+                <strong>Practice</strong>
+                <span>Run code; grading requires a published activity.</span>
               </div>
             </section>
 
@@ -193,9 +172,13 @@ export default function Exercise() {
                     )}
                   </div>
                 ) : (
-                  <div
+                  <iframe
                     className="exercise-preview-box"
+                    title="HTML exercise preview"
+                    sandbox="allow-scripts"
+                    srcDoc={code}
                     style={{
+                      width: '100%',
                       minHeight: '180px',
                       padding: '16px',
                       background: '#ffffff',
@@ -204,87 +187,47 @@ export default function Exercise() {
                       borderBottomRightRadius: '8px',
                       border: '1px solid #cbd5e1'
                     }}
-                    dangerouslySetInnerHTML={{ __html: code }}
                   />
                 )}
 
                 <div className="editor-actions" style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
-                  <button className="btn btn-primary" onClick={runTest}>
-                    ▶ Run Code
+                  <button className="btn btn-primary" onClick={runTest} disabled={isRunning}>
+                    {isRunning ? 'Running in isolated runner…' : '▶ Run Code'}
                   </button>
                   <button className="btn btn-outline" onClick={handleReset}>
                     Reset
                   </button>
                 </div>
+                {executionError && (
+                  <div role="alert" style={{ color: '#f87171', marginTop: '12px' }}>
+                    {executionError}
+                  </div>
+                )}
               </div>
             </section>
 
-            {/* EXPECTED RESULT */}
             <section className="card test-section">
               <div className="section-title">
                 <div>
-                  <span className="lesson-label">TEST CASE</span>
-                  <h2>Validation Check</h2>
+                  <span className="lesson-label">ASSESSMENT</span>
+                  <h2>Server-graded activities</h2>
                 </div>
-                <span className={`badge ${testPassed === true ? 'badge-success' : testPassed === false ? 'badge-danger' : 'badge-warning'}`}>
-                  {testPassed === true ? 'PASSED' : testPassed === false ? 'FAILED' : 'NOT TESTED'}
-                </span>
               </div>
-
               <div className="test-case">
                 <div>
-                  <strong>Requirement Check</strong>
-                  <p>Check if solution satisfies: "{course.exercise.expectedResult}"</p>
+                  <strong>Code execution</strong>
+                  <p>Code runs in the backend sandbox and does not award points by itself.</p>
                 </div>
-                <span className="test-status">
-                  {testPassed === true ? '✅ Passed' : testPassed === false ? '❌ Failed' : '○ Pending'}
-                </span>
+                <span className="test-status">{consoleLogs.length ? 'Executed' : 'Not run'}</span>
               </div>
             </section>
 
-            {/* SUBMISSION */}
             <section className="card submission-section">
-              <span className="lesson-label">SUBMISSION</span>
-              <h2>Submit Your Exercise</h2>
-              <p>Run your code and submit it when you are satisfied with your solution.</p>
-
-              <div className="submission-info">
-                <div>
-                  <span>Maximum Score</span>
-                  <strong>10 points</strong>
-                </div>
-                <div>
-                  <span>Status</span>
-                  <strong>
-                    {submitted
-                      ? testPassed
-                        ? 'Passed (10/10)'
-                        : 'Needs Revision (0/10)'
-                      : 'Not Submitted'}
-                  </strong>
-                </div>
-              </div>
-
-              <button className="btn btn-primary submit-button" onClick={handleSubmit}>
-                Submit Exercise
-              </button>
-
-              {submitted && (
-                <div
-                  style={{
-                    marginTop: '16px',
-                    padding: '14px',
-                    borderRadius: '8px',
-                    backgroundColor: testPassed ? '#064e3b' : '#7f1d1d',
-                    color: testPassed ? '#a7f3d0' : '#fecaca',
-                    border: `1px solid ${testPassed ? '#059669' : '#dc2626'}`
-                  }}
-                >
-                  {testPassed
-                    ? '🎉 Exercise Completed! 10 Points Awarded!'
-                    : '❌ Test criteria not met. Review the instructions and requirements.'}
-                </div>
-              )}
+              <h2>Submission</h2>
+              <p>
+                This practice page is not connected to a published backend activity.
+                It cannot record a submission, grade, or course completion.
+              </p>
             </section>
 
             {/* NAVIGATION */}

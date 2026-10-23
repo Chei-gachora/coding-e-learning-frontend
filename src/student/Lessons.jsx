@@ -1,525 +1,413 @@
-import { useState, useEffect } from 'react';
-import { Link, useSearchParams, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { useCourses } from '../context/CourseContext';
-import Sidebar from '../components/Sidebar';
-import { getCourseBySlug } from '../data/coursesData';
+import { api } from '../lib/api';
 
-export default function Lesson() {
-  const { user } = useAuth();
-  const { courses } = useCourses();
+const EMPTY_LIST = [];
+
+function toList(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  throw new Error('The server returned course content in an unexpected format.');
+}
+
+function activityKind(activity) {
+  return String(activity?.activity_type || '').toLowerCase();
+}
+
+export default function Lessons() {
   const [searchParams] = useSearchParams();
-  const { courseId } = useParams();
-
-  // Dynamically resolve course from query param ?course=... or route param :courseId
-  const courseSlug = searchParams.get('course') || courseId || 'html-fundamentals';
-  const matchedContextCourse = courses.find(
-    c => c.slug?.toLowerCase() === courseSlug.toLowerCase() || String(c.id) === String(courseSlug)
+  const { user } = useAuth();
+  const { courses, enrolledCourses, loading: coursesLoading } = useCourses();
+  const courseKey = searchParams.get('course');
+  const course = [...enrolledCourses, ...courses].find(
+    (item) => String(item.id) === String(courseKey) || item.slug === courseKey,
   );
-  const baseCourse = getCourseBySlug(courseSlug);
-  const course = {
-    ...baseCourse,
-    ...(matchedContextCourse || {}),
-  };
+  const [modules, setModules] = useState([]);
+  const [activeLessonId, setActiveLessonId] = useState(null);
+  const [activeActivityId, setActiveActivityId] = useState(null);
+  const [code, setCode] = useState('');
+  const [quiz, setQuiz] = useState(null);
+  const [answers, setAnswers] = useState({});
+  const [executionResult, setExecutionResult] = useState(null);
+  const [quizResult, setQuizResult] = useState(null);
+  const [submissionResult, setSubmissionResult] = useState(null);
+  const [pageError, setPageError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [working, setWorking] = useState(false);
 
-  // Build full lessons list from context or base course
-  const lessonsList = (matchedContextCourse?.lessonsList && matchedContextCourse.lessonsList.length > 0)
-    ? matchedContextCourse.lessonsList
-    : [
-        {
-          id: `${course.slug}-lesson-1`,
-          lessonNumber: 1,
-          title: course.lessonTitle || `Core Foundations of ${course.title}`,
-          moduleLabel: course.moduleLabel || 'MODULE 1 • LESSON 1',
-          description: course.lessonDescription || course.description,
-          duration: course.video?.duration || '15 min',
-          codeSnippet: course.tutorial?.codeSnippet || course.starterCode,
-          starterCode: course.starterCode,
-          quiz: course.quiz
-        }
-      ];
-
-  const lessonParam = searchParams.get('lesson');
-  const [activeLessonId, setActiveLessonId] = useState(() => {
-    return lessonParam || lessonsList[0]?.id;
-  });
-
-  // Keep activeLessonId in sync if lessonsList changes or query param arrives
   useEffect(() => {
-    if (lessonParam && lessonsList.some(l => String(l.id) === String(lessonParam))) {
-      setActiveLessonId(lessonParam);
-    } else if (lessonsList.length > 0 && !lessonsList.some(l => String(l.id) === String(activeLessonId))) {
-      setActiveLessonId(lessonsList[0].id);
+    if (!course?.id || !course.isEnrolled || !user) {
+      setModules([]);
+      setActiveLessonId(null);
+      return undefined;
     }
-  }, [lessonParam, lessonsList, activeLessonId]);
 
-  const activeLesson = lessonsList.find(l => String(l.id) === String(activeLessonId)) || lessonsList[0];
+    let cancelled = false;
+    setLoading(true);
+    setPageError('');
+    Promise.resolve()
+      .then(async () => {
+        const moduleItems = toList(await api.get(
+          `/modules/?course=${encodeURIComponent(course.id)}`,
+        ));
+        const populatedModules = await Promise.all(moduleItems.map(async (module) => ({
+          ...module,
+          lessons: toList(await api.get(
+            `/lessons/?module=${encodeURIComponent(module.id)}`,
+          )),
+        })));
+        if (cancelled) return;
+        setModules(populatedModules);
+        const firstLesson = populatedModules.flatMap((module) => module.lessons)[0];
+        setActiveLessonId((current) => (
+          populatedModules.some((module) =>
+            module.lessons.some((lesson) => String(lesson.id) === String(current)),
+          )
+            ? current
+            : firstLesson?.id || null
+        ));
+      })
+      .catch((error) => {
+        if (!cancelled) setPageError(error.message || 'Unable to load course lessons.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-  const [code, setCode] = useState(() => {
-    const key = `codelearn_code_${user?.id}_${course.slug}_${activeLesson?.id}`;
-    return localStorage.getItem(key) || activeLesson?.starterCode || course.starterCode;
-  });
+    return () => {
+      cancelled = true;
+    };
+  }, [course?.id, course?.isEnrolled, user]);
 
-  const [activeTab, setActiveTab] = useState('editor');
-  const [quizAnswer, setQuizAnswer] = useState('');
-  const [consoleLogs, setConsoleLogs] = useState([]);
+  const lessons = useMemo(
+    () => modules.flatMap((module) => module.lessons),
+    [modules],
+  );
+  const activeLesson = lessons.find(
+    (lesson) => String(lesson.id) === String(activeLessonId),
+  );
+  const activities = activeLesson?.activities || EMPTY_LIST;
+  const activeActivity = activities.find(
+    (activity) => String(activity.id) === String(activeActivityId),
+  );
+  const kind = activityKind(activeActivity);
+  const activeQuiz = quiz?.activityId === activeActivity?.id ? quiz.value : null;
 
-  const [quizSubmitted, setQuizSubmitted] = useState(() => {
-    return (
-      localStorage.getItem(`codelearn_quiz_submitted_${user?.id}_${course.slug}_${activeLesson?.id}`) === 'true'
-    );
-  });
-
-  const [quizCorrect, setQuizCorrect] = useState(() => {
-    return (
-      localStorage.getItem(`codelearn_quiz_correct_${user?.id}_${course.slug}_${activeLesson?.id}`) === 'true'
-    );
-  });
-
-  // When active lesson changes, update code and quiz state
   useEffect(() => {
-    if (!activeLesson) return;
-    const lessonCodeKey = `codelearn_code_${user?.id}_${course.slug}_${activeLesson.id}`;
-    const savedCode = localStorage.getItem(lessonCodeKey);
-    setCode(savedCode || activeLesson.starterCode || course.starterCode);
-
-    const savedQuizSubmitted =
-      localStorage.getItem(`codelearn_quiz_submitted_${user?.id}_${course.slug}_${activeLesson.id}`) === 'true';
-    const savedQuizCorrect =
-      localStorage.getItem(`codelearn_quiz_correct_${user?.id}_${course.slug}_${activeLesson.id}`) === 'true';
-
-    setQuizSubmitted(savedQuizSubmitted);
-    setQuizCorrect(savedQuizCorrect);
-    setQuizAnswer('');
-    setActiveTab('editor');
-    setConsoleLogs([]);
-  }, [course.slug, activeLesson?.id, user?.id]);
+    setActiveActivityId(activities[0]?.id || null);
+  }, [activeLessonId, activities, modules]);
 
   useEffect(() => {
-    if (user?.id && course?.slug && activeLesson?.id) {
-      localStorage.setItem(`codelearn_code_${user.id}_${course.slug}_${activeLesson.id}`, code);
+    setCode(activeActivity?.starter_code || '');
+    setExecutionResult(null);
+    setQuizResult(null);
+    setSubmissionResult(null);
+    setActionError('');
+    setAnswers({});
+    setQuiz(null);
+  }, [activeActivityId, activeActivity?.starter_code]);
+
+  useEffect(() => {
+    if (kind !== 'quiz' || !activeActivity?.id) {
+      return undefined;
     }
-  }, [code, user?.id, course.slug, activeLesson?.id]);
-
-  useEffect(() => {
-    if (user?.id && course?.slug && activeLesson?.id) {
-      localStorage.setItem(
-        `codelearn_quiz_submitted_${user.id}_${course.slug}_${activeLesson.id}`,
-        quizSubmitted
-      );
-      localStorage.setItem(
-        `codelearn_quiz_correct_${user.id}_${course.slug}_${activeLesson.id}`,
-        quizCorrect
-      );
-    }
-  }, [quizSubmitted, quizCorrect, user?.id, course.slug, activeLesson?.id]);
-
-  const handleRunCode = () => {
-    setActiveTab('preview');
-    if (course.previewType === 'console') {
-      const logs = [];
-      const customConsole = {
-        log: (...args) =>
-          logs.push(
-            args
-              .map((a) =>
-                typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)
-              )
-              .join(' ')
-          ),
-        error: (...args) => logs.push('❌ ' + args.join(' ')),
-        warn: (...args) => logs.push('⚠️ ' + args.join(' ')),
-        info: (...args) => logs.push('ℹ️ ' + args.join(' '))
-      };
-
-      try {
-        if (course.codeType === 'javascript' || course.codeType === 'typescript') {
-          // Strip basic TS type annotations for browser evaluation
-          const cleanCode = code
-            .replace(/:\s*(string|number|boolean|any|void|object|string\[\]|number\[\])/g, '')
-            .replace(/interface\s+\w+\s*\{[\s\S]*?\}/g, '');
-          const runner = new Function('console', cleanCode);
-          runner(customConsole);
-        } else if (course.codeType === 'python') {
-          // Parse Python prints and simple expressions
-          const printMatches = [...code.matchAll(/print\((?:f?["'](.*?)["']|(.*?))\)/g)];
-          if (printMatches.length > 0) {
-            printMatches.forEach((m) => {
-              logs.push(m[1] || m[2]);
-            });
-          } else {
-            logs.push('Python script executed with return code 0.');
-          }
+    let cancelled = false;
+    api.get(`/quizzes/?activity=${encodeURIComponent(activeActivity.id)}`)
+      .then((response) => {
+        if (!cancelled) {
+          const quizItems = toList(response);
+          setQuiz({
+            activityId: activeActivity.id,
+            value: quizItems[0] || response?.quiz || null,
+          });
         }
+      })
+      .catch((error) => {
+        if (!cancelled) setActionError(error.message || 'Unable to load this quiz.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeActivity?.id, kind]);
 
-        if (logs.length === 0) {
-          logs.push('Execution completed. (No console.log outputs)');
-        }
-      } catch (err) {
-        logs.push(`Runtime Error: ${err.message}`);
-      }
-
-      setConsoleLogs(logs);
+  const runTests = async () => {
+    if (!activeActivity) return;
+    setWorking(true);
+    setActionError('');
+    setExecutionResult(null);
+    try {
+      const result = await api.post('/execute/test/', {
+        activity_id: activeActivity.id,
+        language: activeActivity.language,
+        code,
+      });
+      setExecutionResult(result);
+    } catch (error) {
+      setActionError(error.message || 'Code execution failed.');
+    } finally {
+      setWorking(false);
     }
   };
 
-  const handleResetCode = () => {
-    setCode(activeLesson.starterCode || course.starterCode);
-    setConsoleLogs([]);
-    setActiveTab('editor');
+  const submitWork = async () => {
+    if (!activeActivity) return;
+    setWorking(true);
+    setActionError('');
+    try {
+      const result = await api.post('/submissions/', {
+        activity: activeActivity.id,
+        content: code,
+      });
+      setSubmissionResult(result);
+    } catch (error) {
+      setActionError(error.message || 'Unable to submit this activity.');
+    } finally {
+      setWorking(false);
+    }
   };
 
-  const handleQuizSubmit = () => {
-    if (!quizAnswer) return;
-    const currentQuiz = activeLesson.quiz || course.quiz;
-    const isCorrect = quizAnswer === currentQuiz?.correctAnswer || quizAnswer === 'a';
-    setQuizSubmitted(true);
-    setQuizCorrect(isCorrect);
+  const submitQuiz = async () => {
+    if (!activeQuiz?.id) {
+      setActionError('This quiz is not available yet.');
+      return;
+    }
+    if (activeQuiz.questions?.some((question) => answers[String(question.id)] === undefined)) {
+      setActionError('Answer each question before submitting so you do not use an attempt accidentally.');
+      return;
+    }
+    setWorking(true);
+    setActionError('');
+    try {
+      const result = await api.post(`/quizzes/${activeQuiz.id}/submit/`, { answers });
+      setQuizResult(result);
+    } catch (error) {
+      setActionError(error.message || 'Unable to submit your quiz.');
+    } finally {
+      setWorking(false);
+    }
   };
 
   return (
     <div className="dashboard-layout">
-      {/* Stationary Sidebar */}
       <Sidebar />
+      <main className="main-content" style={{ padding: '32px', minWidth: 0 }}>
+        <div className="breadcrumb">
+          <Link to="/my-courses">My Courses</Link>
+          <span>›</span>
+          <strong>{course?.title || 'Lessons'}</strong>
+        </div>
 
-      <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
-        <main className="lesson-page" style={{ minHeight: 'unset', padding: '0' }}>
-          <div className="container" style={{ maxWidth: '100%', padding: '0' }}>
-            {/* BREADCRUMB */}
-            <div className="breadcrumb">
-              <Link to="/courses">Courses</Link>
-              <span>›</span>
-              <Link to="/my-courses">My Courses</Link>
-              <span>›</span>
-              <Link to={`/lesson?course=${course.slug}`}>{course.title}</Link>
-              <span>›</span>
-              <strong>{activeLesson.title}</strong>
-            </div>
+        {!courseKey && (
+          <section className="card">
+            <h1>Choose a course</h1>
+            <p>Open a course from your enrolled courses to view its lessons.</p>
+            <Link className="btn btn-primary" to="/my-courses">My courses</Link>
+          </section>
+        )}
 
-            {/* COURSE LESSONS SYLLABUS / SELECTOR */}
-            <section className="card" style={{ marginBottom: '24px', padding: '16px 20px', background: '#0e1626', border: '1px solid #1e293b', borderRadius: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '20px' }}>📖</span>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '15px', color: '#f8fafc' }}>
-                      Course Curriculum ({lessonsList.length} Lessons Available)
-                    </h3>
-                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                      Click any lesson below to view tutorial, interactive editor, and quick quiz.
-                    </span>
-                  </div>
-                </div>
-                <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc', border: '1px solid rgba(139, 92, 246, 0.4)' }}>
-                  Active: Lesson {activeLesson.lessonNumber || 1} of {lessonsList.length}
-                </span>
-              </div>
+        {courseKey && coursesLoading && <p role="status">Loading course…</p>}
 
-              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
-                {lessonsList.map((les, idx) => {
-                  const isCurrent = String(les.id) === String(activeLesson.id);
-                  return (
-                    <button
-                      key={les.id || idx}
-                      onClick={() => setActiveLessonId(les.id)}
-                      className={`btn btn-small ${isCurrent ? 'btn-primary' : 'btn-outline'}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        whiteSpace: 'nowrap',
-                        padding: '8px 14px',
-                        borderRadius: '8px',
-                        background: isCurrent ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' : '#090d16',
-                        borderColor: isCurrent ? '#8b5cf6' : '#24344d',
-                        color: isCurrent ? '#fff' : '#cbd5e1',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <span style={{ opacity: 0.7, fontSize: '11px', fontWeight: 'bold' }}>#{idx + 1}</span>
-                      <span>{les.title}</span>
-                      {les.isNew && (
-                        <span className="badge" style={{ background: '#10b981', color: '#fff', fontSize: '10px', padding: '1px 6px' }}>NEW</span>
+        {courseKey && !coursesLoading && !course && (
+          <section className="card" role="alert">
+            <h1>Course unavailable</h1>
+            <p>This course could not be found in the server catalog.</p>
+            <Link to="/my-courses">Return to my courses</Link>
+          </section>
+        )}
+
+        {course && !course.isEnrolled && (
+          <section className="card">
+            <h1>{course.title}</h1>
+            <p>Enroll in this course before opening its lessons.</p>
+            <Link className="btn btn-primary" to="/courses">Browse courses</Link>
+          </section>
+        )}
+
+        {course?.isEnrolled && (
+          <>
+            <header style={{ margin: '16px 0 24px' }}>
+              <h1>{course.title}</h1>
+              <p>{course.description}</p>
+            </header>
+
+            {pageError && <p role="alert">{pageError}</p>}
+            {loading && <p role="status">Loading course content…</p>}
+
+            {!loading && !pageError && modules.length === 0 && (
+              <section className="card">
+                <p>This course does not have published modules yet.</p>
+              </section>
+            )}
+
+            {!loading && modules.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 3fr', gap: '24px' }}>
+                <nav className="card" aria-label="Course curriculum">
+                  {modules.map((module) => (
+                    <section key={module.id} style={{ marginBottom: '20px' }}>
+                      <h2 style={{ fontSize: '1rem' }}>{module.title}</h2>
+                      {module.lessons.length === 0 && (
+                        <p style={{ opacity: 0.75 }}>
+                          No lessons are available in this module yet. It may be locked or unpublished.
+                        </p>
                       )}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* LESSON HEADER */}
-            <section className="lesson-header">
-              <div>
-                <span className="lesson-label">{activeLesson.moduleLabel || course.moduleLabel || 'MODULE 1 • LESSON 1'}</span>
-                <h1>{activeLesson.title}</h1>
-                <p>{activeLesson.description || course.lessonDescription}</p>
-                <div style={{ marginTop: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  Instructor: <strong style={{ color: 'var(--text-primary)' }}>{course.instructor}</strong> • Level: <strong style={{ color: 'var(--text-primary)' }}>{course.level}</strong>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {activeLesson.isNew && (
-                  <span className="badge" style={{ background: '#10b981', color: '#fff' }}>NEW LESSON</span>
-                )}
-                <span className={`badge ${course.status === 'completed' ? 'badge-success' : 'badge-primary'}`}>
-                  {course.status === 'completed' ? 'Completed' : 'In Progress'}
-                </span>
-              </div>
-            </section>
-
-            {/* LEARNING OBJECTIVES */}
-            <section className="card lesson-objectives">
-              <h2>🎯 Learning Objectives</h2>
-              <p>By the end of this lesson, you will be able to:</p>
-              <ul>
-                {(course.objectives || [
-                  `Understand core principles and syntax of ${activeLesson.title}.`,
-                  'Write, run, and inspect working code in real-time.',
-                  'Complete hands-on exercise with instant evaluation.'
-                ]).map((obj, i) => (
-                  <li key={i}>{obj}</li>
-                ))}
-              </ul>
-            </section>
-
-            {/* VIDEO */}
-            <section className="card lesson-video">
-              <div className="section-title">
-                <div>
-                  <span className="lesson-label">LEARN</span>
-                  <h2>Watch the Lesson</h2>
-                </div>
-                <span className="video-duration">▶ {activeLesson.duration || course.video?.duration || '15 min'}</span>
-              </div>
-
-              <div className="video-placeholder" style={{ cursor: 'pointer' }}>
-                <div className="play-button">▶</div>
-                <h3>{activeLesson.title}</h3>
-                <p>{activeLesson.description || course.video?.description}</p>
-              </div>
-            </section>
-
-            {/* TUTORIAL */}
-            <section className="card tutorial-section">
-              <span className="lesson-label">{activeLesson.moduleLabel || course.tutorial?.label || 'TUTORIAL'}</span>
-              <h2>{activeLesson.title}</h2>
-              <p>{activeLesson.description || course.tutorial?.p1}</p>
-              {course.tutorial?.p2 && <p>{course.tutorial.p2}</p>}
-
-              <h3>Code Example</h3>
-              <div className="code-example">
-                <pre>
-                  <code>{activeLesson.codeSnippet || course.tutorial?.codeSnippet}</code>
-                </pre>
-              </div>
-            </section>
-
-            {/* PRACTICE WITH INTERACTIVE EDITOR & PREVIEW/CONSOLE */}
-            <section className="card practice-section">
-              <div className="section-title">
-                <div>
-                  <span className="lesson-label">PRACTICE</span>
-                  <h2>Try It Yourself</h2>
-                </div>
-                <span className="badge badge-warning">10 Points</span>
-              </div>
-
-              <p>
-                Type or edit your {course.codeType.toUpperCase()} code below and toggle to{' '}
-                <strong>{course.previewType === 'console' ? 'Console Output' : 'Live Preview'}</strong> or click{' '}
-                <strong>▶ Run Code &amp; Preview</strong> to see live output!
-              </p>
-
-              <div className="editor-container">
-                <div
-                  className="editor-header"
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      className={`btn btn-small ${activeTab === 'editor' ? 'btn-primary' : 'btn-outline'}`}
-                      onClick={() => setActiveTab('editor')}
-                    >
-                      {course.codeType.toUpperCase()} Editor
-                    </button>
-                    <button
-                      className={`btn btn-small ${activeTab === 'preview' ? 'btn-primary' : 'btn-outline'}`}
-                      onClick={handleRunCode}
-                    >
-                      {course.previewType === 'console' ? 'Console Output' : 'Live Preview'}
-                    </button>
-                  </div>
-                  <span className="badge" style={{ background: '#334155', color: '#f8fafc', textTransform: 'uppercase' }}>
-                    {course.codeType}
-                  </span>
-                </div>
-
-                {activeTab === 'editor' ? (
-                  <textarea
-                    className="code-editor"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder={`Enter ${course.codeType.toUpperCase()} code here...`}
-                    style={{
-                      width: '100%',
-                      minHeight: '180px',
-                      fontFamily: 'monospace',
-                      padding: '14px',
-                      fontSize: '14px',
-                      background: '#090d16',
-                      color: '#f8fafc',
-                      borderRadius: '8px',
-                      border: '1px solid #24344d',
-                      resize: 'vertical'
-                    }}
-                  />
-                ) : course.previewType === 'console' ? (
-                  <div
-                    style={{
-                      minHeight: '180px',
-                      padding: '16px',
-                      background: '#090d16',
-                      borderRadius: '8px',
-                      border: '1px solid #24344d',
-                      fontFamily: 'monospace',
-                      fontSize: '14px',
-                      overflowX: 'auto'
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: '#64748b',
-                        fontSize: '12px',
-                        borderBottom: '1px solid #1e293b',
-                        paddingBottom: '6px',
-                        marginBottom: '10px'
-                      }}
-                    >
-                      CONSOLE OUTPUT ({course.codeType.toUpperCase()})
-                    </div>
-                    {consoleLogs.length === 0 ? (
-                      <div style={{ color: '#94a3b8' }}>Click &quot;▶ Run Code &amp; Preview&quot; to execute and see output.</div>
-                    ) : (
-                      consoleLogs.map((log, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            color: log.startsWith('❌') || log.startsWith('Runtime Error') ? '#f87171' : '#38bdf8',
-                            marginBottom: '4px'
-                          }}
+                      {module.lessons.map((lesson) => (
+                        <button
+                          key={lesson.id}
+                          type="button"
+                          className="btn btn-outline"
+                          aria-current={String(activeLessonId) === String(lesson.id) ? 'page' : undefined}
+                          onClick={() => setActiveLessonId(lesson.id)}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' }}
                         >
-                          <span style={{ color: '#64748b', marginRight: '8px' }}>&gt;</span>
-                          {log}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    className="code-preview-output"
-                    style={{
-                      minHeight: '180px',
-                      padding: '16px',
-                      background: '#ffffff',
-                      color: '#0f172a',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1'
-                    }}
-                    dangerouslySetInnerHTML={{ __html: code }}
-                  />
-                )}
+                          {lesson.title}
+                        </button>
+                      ))}
+                    </section>
+                  ))}
+                </nav>
 
-                <div className="editor-footer" style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
-                  <button className="btn btn-primary" onClick={handleRunCode}>
-                    ▶ Run Code &amp; Preview
-                  </button>
-                  <button className="btn btn-outline" onClick={handleResetCode}>
-                    Reset Code
-                  </button>
-                </div>
+                <article className="card" style={{ minWidth: 0 }}>
+                  {!activeLesson && <p>Select an available lesson to begin.</p>}
+                  {activeLesson && (
+                    <>
+                      <h2>{activeLesson.title}</h2>
+                      {activeLesson.learning_objectives && (
+                        <p>{activeLesson.learning_objectives}</p>
+                      )}
+                      {activeLesson.video_url && (
+                        <p>
+                          <a href={activeLesson.video_url} target="_blank" rel="noreferrer">
+                            Open lesson video
+                          </a>
+                        </p>
+                      )}
+                      {activeLesson.video_file_url && (
+                        <video
+                          controls
+                          preload="metadata"
+                          src={activeLesson.video_file_url}
+                          style={{ display: 'block', width: '100%', maxHeight: '480px', margin: '16px 0' }}
+                        >
+                          Your browser does not support video playback.
+                        </video>
+                      )}
+                      {activeLesson.tutorial_content && (
+                        <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                          {activeLesson.tutorial_content}
+                        </pre>
+                      )}
+
+                      {activities.length > 0 && (
+                        <section style={{ marginTop: '28px' }}>
+                          <h3>Activities</h3>
+                          <div role="tablist" aria-label="Lesson activities" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {activities.map((activity) => (
+                              <button
+                                key={activity.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={String(activeActivityId) === String(activity.id)}
+                                className="btn btn-outline"
+                                onClick={() => setActiveActivityId(activity.id)}
+                              >
+                                {activity.title}
+                              </button>
+                            ))}
+                          </div>
+                          {activeActivity && (
+                            <div style={{ marginTop: '16px' }}>
+                              <h4>{activeActivity.title}</h4>
+                              <p>{activeActivity.instructions}</p>
+
+                              {kind === 'quiz' && (
+                                <div>
+                                  {!activeQuiz && <p role="status">Loading quiz…</p>}
+                                  {activeQuiz?.questions?.map((question) => (
+                                    <fieldset key={question.id} style={{ margin: '16px 0' }}>
+                                      <legend>{question.text}</legend>
+                                      {question.choices?.map((choice, index) => (
+                                        <label key={index} style={{ display: 'block', margin: '8px 0' }}>
+                                          <input
+                                            type="radio"
+                                            name={`question-${question.id}`}
+                                            checked={answers[String(question.id)] === index}
+                                            onChange={() => setAnswers((current) => ({
+                                              ...current,
+                                              [String(question.id)]: index,
+                                            }))}
+                                          />
+                                          {' '}{choice.text}
+                                        </label>
+                                      ))}
+                                    </fieldset>
+                                  ))}
+                                  {activeQuiz && (
+                                    <button className="btn btn-primary" onClick={submitQuiz} disabled={working}>
+                                      {working ? 'Submitting…' : 'Submit quiz'}
+                                    </button>
+                                  )}
+                                  {quizResult && (
+                                    <p role="status">
+                                      {quizResult.passed ? 'Quiz passed.' : 'Quiz not passed.'}
+                                      {' '}Score: {quizResult.score}/{quizResult.total_marks}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {kind !== 'quiz' && (
+                                <>
+                                  <label htmlFor="lesson-code">Your code or written response</label>
+                                  <textarea
+                                    id="lesson-code"
+                                    value={code}
+                                    onChange={(event) => setCode(event.target.value)}
+                                    rows={12}
+                                    spellCheck="false"
+                                    style={{ display: 'block', width: '100%', fontFamily: 'monospace', margin: '8px 0 12px' }}
+                                  />
+                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    {['exercise', 'lab'].includes(kind) && (
+                                      <button className="btn btn-outline" onClick={runTests} disabled={working}>
+                                        {working ? 'Running…' : 'Run activity tests'}
+                                      </button>
+                                    )}
+                                    <button className="btn btn-primary" onClick={submitWork} disabled={working}>
+                                      {working ? 'Submitting…' : 'Submit activity'}
+                                    </button>
+                                  </div>
+                                  {executionResult && (
+                                    <p role="status">
+                                      {executionResult.passed} of {executionResult.total} tests passed
+                                      {typeof executionResult.score === 'number'
+                                        ? ` (${executionResult.score}%).`
+                                        : '.'}
+                                    </p>
+                                  )}
+                                  {submissionResult && (
+                                    <p role="status">
+                                      Submission received. Attempt {submissionResult.attempt_number}.
+                                    </p>
+                                  )}
+                                </>
+                              )}
+                              {actionError && <p role="alert">{actionError}</p>}
+                            </div>
+                          )}
+                        </section>
+                      )}
+                    </>
+                  )}
+                </article>
               </div>
-            </section>
-
-            {/* LESSON EXERCISE / QUICK CHECK */}
-            <section className="card exercise-section">
-              <span className="lesson-label">EXERCISE</span>
-              <h2>Quick Check</h2>
-              {(() => {
-                const currentQuiz = activeLesson?.quiz || course.quiz || {
-                  question: `What is the key learning objective of ${activeLesson?.title || 'this lesson'}?`,
-                  options: [
-                    { value: 'a', label: `Mastering ${activeLesson?.title || 'the core concepts'} through code practice` },
-                    { value: 'b', label: 'Skipping testing and debugging' },
-                    { value: 'c', label: 'None of the above' }
-                  ],
-                  correctAnswer: 'a',
-                  correctFeedback: '🎉 Correct! Practical understanding is the primary objective.',
-                  incorrectFeedback: '❌ Incorrect. Hint: Choose the active coding takeaway.'
-                };
-                return (
-                  <>
-                    <p>{currentQuiz.question}</p>
-
-                    {(currentQuiz.options || []).map((opt) => (
-                      <div key={opt.value} className="answer-option" style={{ marginBottom: '10px' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                          <input
-                            type="radio"
-                            name="answer"
-                            value={opt.value}
-                            checked={quizAnswer === opt.value}
-                            onChange={(e) => setQuizAnswer(e.target.value)}
-                          />
-                          <span>{opt.label}</span>
-                        </label>
-                      </div>
-                    ))}
-
-                    <button className="btn btn-primary" onClick={handleQuizSubmit} style={{ marginTop: '12px' }}>
-                      Submit Answer
-                    </button>
-
-                    {quizSubmitted && (
-                      <div
-                        style={{
-                          marginTop: '16px',
-                          padding: '14px',
-                          borderRadius: '8px',
-                          backgroundColor: quizCorrect ? '#064e3b' : '#7f1d1d',
-                          color: quizCorrect ? '#a7f3d0' : '#fecaca',
-                          border: `1px solid ${quizCorrect ? '#059669' : '#dc2626'}`
-                        }}
-                      >
-                        {quizCorrect ? currentQuiz.correctFeedback : currentQuiz.incorrectFeedback}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </section>
-
-            {/* LESSON NAVIGATION */}
-            <div className="lesson-navigation" style={{ display: 'flex', justifyContent: 'space-between', margin: '32px 0' }}>
-              <Link to="/my-courses" className="btn btn-outline">
-                ← Back to My Courses
-              </Link>
-              <Link to={`/exercise?course=${course.slug}`} className="btn btn-primary">
-                Continue to Exercise →
-              </Link>
-            </div>
-          </div>
-        </main>
-
-        <footer>
-          <div className="container footer-content">
-            <div>
-              <h3>Code<span>Learn</span></h3>
-              <p>Learn coding. Practice skills. Build projects.</p>
-            </div>
-            <p>© 2026 CodeLearn. All rights reserved.</p>
-          </div>
-        </footer>
-      </div>
+            )}
+          </>
+        )}
+      </main>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { FaLaptopCode } from "react-icons/fa6";
 import Sidebar from '../components/Sidebar';
 
 export default function InstructorDashboard() {
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   // State for pending student submissions
@@ -64,43 +64,39 @@ export default function InstructorDashboard() {
     showTempNotification(`Grade (${gradeInput}%) & feedback sent to ${gradingSubmission.student}! ✅`);
   };
 
-  const handleCreateContent = (e) => {
+  const handleCreateContent = async (e) => {
     e.preventDefault();
     if (!newItemTitle.trim()) return;
 
-    if (activeModal === 'course') {
-      addCourse(newItemTitle.trim(), newItemDescription.trim(), {
-        level: newItemLevel,
-        instructor: instructorName,
-      });
-      showTempNotification(`New course "${newItemTitle.trim()}" created successfully! Now visible in All Courses and Course Performance Overview. 📚🎉`);
-    } else if (activeModal === 'lesson') {
-      const courseIdToUse = selectedCourseId || (courses[0]?.id || '');
-      const targetCourse = courses.find(c => String(c.id) === String(courseIdToUse) || c.slug === courseIdToUse) || courses[0];
-      if (courseIdToUse) {
-        addLesson(courseIdToUse, {
-          title: newItemTitle.trim(),
-          description: newItemDescription.trim(),
-          moduleLabel: newItemModule.trim(),
-          starterCode: newItemCode.trim(),
+    try {
+      if (activeModal === 'course') {
+        await addCourse(newItemTitle.trim(), newItemDescription.trim(), {
+          level: newItemLevel,
         });
-        showTempNotification(`New lesson "${newItemTitle.trim()}" added to "${targetCourse?.title || 'Course'}"! Visible in Course Performance Overview & Student Lessons. 📖✨`);
-      }
-    } else if (activeModal === 'exercise') {
-      const courseIdToUse = selectedCourseId || (courses[0]?.id || '');
-      const targetCourse = courses.find(c => String(c.id) === String(courseIdToUse) || c.slug === courseIdToUse) || courses[0];
-      if (courseIdToUse) {
-        addExercise(courseIdToUse, {
+        showTempNotification(`Course "${newItemTitle.trim()}" was saved as a draft on the server.`);
+      } else {
+        const courseIdToUse = selectedCourseId || courses[0]?.id;
+        if (!courseIdToUse) throw new Error('Create or select a course first.');
+        const content = {
           title: newItemTitle.trim(),
           description: newItemDescription.trim(),
           moduleLabel: newItemModule.trim(),
           expectedResult: newItemExpected.trim(),
           starterCode: newItemCode.trim(),
-        });
-        showTempNotification(`New coding exercise "${newItemTitle.trim()}" added to "${targetCourse?.title || 'Course'}"! Visible in Course Performance Overview & Student Exercises. 💻🎉`);
+          activityType: activeModal === 'lab' ? 'lab' : 'exercise',
+        };
+        if (activeModal === 'lesson') {
+          await addLesson(courseIdToUse, content);
+        } else if (activeModal === 'exercise' || activeModal === 'lab') {
+          await addExercise(courseIdToUse, content);
+        } else {
+          throw new Error('This content type is not supported by the backend.');
+        }
+        showTempNotification(`${activeModal} "${newItemTitle.trim()}" was saved on the server.`);
       }
-    } else {
-      showTempNotification(`New ${activeModal} "${newItemTitle.trim()}" published! 🚀`);
+    } catch (error) {
+      showTempNotification(error.message || 'Unable to save content.');
+      return;
     }
 
     setNewItemTitle('');
@@ -118,9 +114,13 @@ export default function InstructorDashboard() {
     setTimeout(() => setNotification(''), 4000);
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      showTempNotification(`Unable to sign out: ${error.message}`);
+    }
   };
 
   const instructorName = user?.name || 'Dr. Sarah Jenkins';

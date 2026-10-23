@@ -8,10 +8,10 @@ const MyCourses = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Use the central reactive courses catalog
-  const { courses } = useCourses();
+  const { enrolledCourses, loading, error } = useCourses();
 
   // Filter courses
-  const filteredCourses = (courses || []).filter((course) => {
+  const filteredCourses = (enrolledCourses || []).filter((course) => {
     const status = course.status || 'not-started';
     const matchesFilter =
       activeFilter === 'all' || status === activeFilter;
@@ -92,9 +92,19 @@ const MyCourses = () => {
 
         {/* Courses List */}
         <div className="courses-list">
-          {filteredCourses.length === 0 ? (
+          {error && (
+            <div role="alert" style={{ color: '#f87171', marginBottom: '16px' }}>
+              {error}
+            </div>
+          )}
+          {loading ? (
+            <div role="status">Loading your courses…</div>
+          ) : filteredCourses.length === 0 ? (
             <div className="empty-state">
-              <p>No courses found matching your criteria.</p>
+              <p>{searchTerm || activeFilter !== 'all'
+                ? 'No enrolled courses match your filters.'
+                : 'You have not enrolled in any courses yet.'}</p>
+              <Link to="/courses" className="btn primary">Browse courses</Link>
             </div>
           ) : (
             filteredCourses.map((course) => (

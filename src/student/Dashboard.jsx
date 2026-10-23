@@ -14,7 +14,7 @@ import { LuMessageCircleCode } from "react-icons/lu";
 import Sidebar from '../components/Sidebar';
 
 export default function StudentDashboard() {
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const { courses } = useCourses();
   const navigate = useNavigate();
 
@@ -75,9 +75,13 @@ export default function StudentDashboard() {
     setTimeout(() => setNotification(''), 4000);
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      showTempNotification(`Unable to sign out: ${error.message}`);
+    }
   };
 
   const userName = user?.name || 'Alex Johnson';
@@ -344,4 +348,3 @@ export default function StudentDashboard() {
     </div>
   );
 }
-

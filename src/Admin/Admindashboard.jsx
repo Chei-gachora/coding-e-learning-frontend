@@ -7,7 +7,7 @@ import { IoBookSharp } from "react-icons/io5";
 import Sidebar from '../components/Sidebar';
 
 export default function AdminDashboard() {
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const { courses } = useCourses();
   const navigate = useNavigate();
 
@@ -96,9 +96,13 @@ export default function AdminDashboard() {
     setTimeout(() => setNotification(''), 4000);
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      showTempNotification(`Unable to sign out: ${error.message}`);
+    }
   };
 
   const adminName = user?.name || 'System Admin';

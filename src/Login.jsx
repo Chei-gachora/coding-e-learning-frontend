@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth, detectRoleFromEmail } from './context/AuthContext';
+import { useAuth } from './context/AuthContext';
+import { api } from './lib/api';
 import codelearnLogo from './assets/codelearn_logo.jpg';
 import { PiStudentBold } from 'react-icons/pi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
@@ -8,7 +9,7 @@ import { MdAdminPanelSettings } from 'react-icons/md';
 
 
 export default function Login() {
-  const { login, user } = useAuth();
+  const { login, user, loading: authLoading, authError } = useAuth();
   const navigate = useNavigate();
 
   // Redirect already-logged-in users straight to their dashboard
@@ -20,54 +21,45 @@ export default function Login() {
     }
   }, [user, navigate]);
 
-  const [email, setEmail]       = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError]       = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [fullName, setFullName] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Admin Modal States
-  const [showAdminPasswordModal, setShowAdminPasswordModal] = useState(false);
-  const [adminPasswordInput, setAdminPasswordInput]         = useState('');
-  const [modalError, setModalError]                         = useState('');
-
-  // Live-detect role as user types
-  const detectedRole = email ? detectRoleFromEmail(email) : null;
-
-  const roleColor = { admin: '#f59e0b', instructor: '#a78bfa', student: '#34d399' };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    if (!email || !password) {
-      setError('Please fill in all fields.');
-      return;
+    setNotice('');
+    setSubmitting(true);
+    try {
+      const signedInUser = await login(email.trim(), password);
+      const dashboardByRole = {
+        student: '/dashboard',
+        instructor: '/instructor',
+        admin: '/admin',
+      };
+      navigate(dashboardByRole[signedInUser.role] || '/', { replace: true });
+    } catch (loginError) {
+      setError(loginError.message || 'Sign in failed. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-
-    const role = detectRoleFromEmail(email);
-
-    if (role === 'admin') {
-      // Admin requires an extra authorization step
-      setShowAdminPasswordModal(true);
-      return;
-    }
-
-    const userData = login(email, password);
-    if (userData.role === 'instructor') navigate('/instructor');
-    else navigate('/dashboard');
   };
 
-  const handleAdminModalSubmit = (e) => {
-    e.preventDefault();
-    setModalError('');
-    if (adminPasswordInput !== 'Admin123') {
-      setModalError('Incorrect administrative password.');
+  const handlePasswordReset = async () => {
+    setError('');
+    setNotice('');
+    if (!email.trim()) {
+      setError('Enter your email address first to request a password reset.');
       return;
     }
-    setShowAdminPasswordModal(false);
-    login(email, adminPasswordInput, isRegistering ? fullName : '');
-    navigate('/admin');
+    try {
+      const response = await api.requestPasswordReset(email.trim());
+      setNotice(response?.detail || 'If the account exists, password reset instructions have been sent.');
+    } catch (resetError) {
+      setError(resetError.message || 'Unable to request a password reset.');
+    }
   };
 
   return (
@@ -107,59 +99,34 @@ export default function Login() {
         {/* ── RIGHT SIDE ── */}
         <div className="login-card">
           <div className="login-heading">
-            <h2>{isRegistering ? 'Admin Registration' : 'Sign In'}</h2>
-            <p>
-              {isRegistering
-                ? 'Register a new administrative account.'
-                : 'Enter your email and we will direct you to the right dashboard.'}
-            </p>
+            <h2>Sign In</h2>
+            <p>Sign in with your account to continue to your dashboard.</p>
           </div>
 
-          {error && (
+          {(error || authError) && (
             <div style={{ background: 'rgba(198, 205, 233, 0.92)', color: '#f87171', border: '1px solid rgba(244,63,94,0.3)', padding: '10px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
-              {error}
+              {error || authError}
+            </div>
+          )}
+          {notice && (
+            <div role="status" style={{ color: '#34d399', marginBottom: '16px', fontSize: '14px' }}>
+              {notice}
             </div>
           )}
 
           <form id="loginForm" onSubmit={handleSubmit}>
-
-            {isRegistering && (
-              <div className="form-group">
-                <label htmlFor="fullName">Full Name</label>
-                <input
-                  type="text"
-                  id="fullName"
-                  className="form-control"
-                  placeholder="Enter your full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-              </div>
-            )}
-
-            {/* Email — role is inferred from this */}
             <div className="form-group">
               <label htmlFor="email">Email Address</label>
               <input
                 type="email"
                 id="email"
                 className="form-control"
+                autoComplete="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              {/* Live role hint */}
-              {detectedRole && (
-                <div style={{ marginTop: '6px', fontSize: '12px', color: roleColor[detectedRole], display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {detectedRole === 'admin'      && <MdAdminPanelSettings />}
-                  {detectedRole === 'instructor' && <FaChalkboardTeacher />}
-                  {detectedRole === 'student'    && <PiStudentBold />}
-                  Detected as&nbsp;<strong style={{ textTransform: 'capitalize' }}>{detectedRole}</strong>
-                  &nbsp;&mdash; you will be directed to the {detectedRole} dashboard.
-                </div>
-              )}
             </div>
 
             <div className="form-group">
@@ -168,6 +135,7 @@ export default function Login() {
                 type="password"
                 id="password"
                 className="form-control"
+                autoComplete="current-password"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -176,32 +144,19 @@ export default function Login() {
             </div>
 
             <div className="login-options">
-              {!isRegistering && (
-                <>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                    <input type="checkbox" defaultChecked /> Remember me
-                  </label>
-                  <a href="#forgot" onClick={(e) => { e.preventDefault(); alert('Password reset instructions sent to your email.'); }}>
-                    Forgot Password?
-                  </a>
-                </>
-              )}
+              <button type="button" className="btn btn-outline" onClick={handlePasswordReset}>
+                Forgot Password?
+              </button>
             </div>
 
-            <button type="submit" className="btn btn-primary login-btn">
-              {isRegistering ? 'Register Admin Account →' : 'Login →'}
+            <button type="submit" className="btn btn-primary login-btn" disabled={submitting || authLoading}>
+              {submitting ? 'Signing in…' : 'Sign In →'}
             </button>
           </form>
 
           <div className="register-link">
             <p>
-              {isRegistering ? (
-                <>Already have an account?&nbsp;
-                  <a href="#signin" onClick={(e) => { e.preventDefault(); setIsRegistering(false); }}>Sign In</a>
-                </>
-              ) : (
-                <>Don&rsquo;t have an account?&nbsp;<Link to="/register">Create an account</Link></>
-              )}
+              Don&rsquo;t have an account?&nbsp;<Link to="/register">Create an account</Link>
             </p>
           </div>
 
@@ -210,60 +165,6 @@ export default function Login() {
           </div>
         </div>
       </div>
-
-      {/* ── ADMIN PASSWORD MODAL ── */}
-      {showAdminPasswordModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '400px', background: '#131c2e', padding: '24px', border: '1px solid #3b82f6', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '20px', color: '#fff' }}>
-                <MdAdminPanelSettings className="role-icon" /> Admin Authorization
-              </h2>
-              <button
-                type="button"
-                onClick={() => { setShowAdminPasswordModal(false); setAdminPasswordInput(''); setModalError(''); }}
-                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {modalError && (
-              <div style={{ background: 'rgba(244,63,94,0.15)', color: '#f87171', border: '1px solid rgba(244,63,94,0.3)', padding: '10px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
-                {modalError}
-              </div>
-            )}
-
-            <form onSubmit={handleAdminModalSubmit}>
-              <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#94a3b8' }}>
-                  Please enter the master admin password:
-                </label>
-                <input
-                  type="password"
-                  className="form-control"
-                  placeholder="Enter Admin Password"
-                  value={adminPasswordInput}
-                  onChange={(e) => setAdminPasswordInput(e.target.value)}
-                  autoFocus
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => { setShowAdminPasswordModal(false); setAdminPasswordInput(''); setModalError(''); }}
-                  className="btn btn-outline"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">Authorize →</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

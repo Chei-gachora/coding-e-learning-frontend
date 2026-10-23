@@ -19,21 +19,23 @@ import InstructorDashboard from './instructorr/Instructordashboard';
 import AdminDashboard from './Admin/Admindashboard';
 import Login from './Login';
 import Register from './student/Register';
+import EmailVerification from './student/EmailVerification';
+import PasswordReset from './student/PasswordReset';
 import Results from './student/Results';
 import Settings from './assets/Settings';
-import { ImHtmlFive } from "react-icons/im";
-import { MdAdminPanelSettings } from "react-icons/md";
 
 function App() {
   return (
     <ThemeProvider>
-      <CourseProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <CourseProvider>
           <Router>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/verify-email" element={<EmailVerification />} />
+              <Route path="/reset-password" element={<PasswordReset />} />
 
               {/* Student Dashboard */}
               <Route 
@@ -83,8 +85,8 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
-        </AuthProvider>
-      </CourseProvider>
+        </CourseProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
