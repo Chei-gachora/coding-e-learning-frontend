@@ -1,20 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../lib/api';
 
 const Settings = () => {
-  // Profile state
-  const [profile, setProfile] = useState({
-    name: 'Paul',
-    email: 'paul@example.com',
-    bio: 'Passionate about learning to code',
-  });
-
-  // Password state
-  const [passwords, setPasswords] = useState({
-    current: '',
-    new: '',
-    confirm: '',
-  });
+  const { user, logout, updateProfile } = useAuth();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState({ name: '', email: '', bio: '' });
 
   // Notification preferences
   const [notifications, setNotifications] = useState({
@@ -32,6 +25,15 @@ const Settings = () => {
 
   const [activeTab, setActiveTab] = useState('profile');
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setProfile({
+      name: user?.name || '',
+      email: user?.email || '',
+      bio: user?.bio || '',
+    });
+  }, [user]);
 
   // Handlers
   const handleProfileChange = (e) => {
@@ -49,31 +51,43 @@ const Settings = () => {
     });
   };
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setMessage('Profile updated successfully!');
-    setTimeout(() => setMessage(''), 3000);
+    setMessage('');
+    const [first_name, ...lastName] = profile.name.trim().split(/\s+/);
+    setSaving(true);
+    try {
+      const updated = await api.patch('/auth/me/', {
+        first_name: first_name || '',
+        last_name: lastName.join(' '),
+        bio: profile.bio,
+      });
+      updateProfile(updated);
+      setMessage('Profile updated successfully.');
+    } catch (error) {
+      setMessage(error.message || 'Unable to update your profile.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleChangePassword = (e) => {
-    e.preventDefault();
-    if (passwords.new !== passwords.confirm) {
-      setMessage('New passwords do not match!');
-      return;
+  const handlePasswordReset = async () => {
+    setMessage('');
+    try {
+      const response = await api.requestPasswordReset(user.email);
+      setMessage(response?.detail || 'If the account exists, password reset instructions have been sent.');
+    } catch (error) {
+      setMessage(error.message || 'Unable to request a password reset.');
     }
-    if (passwords.new.length < 6) {
-      setMessage('Password must be at least 6 characters');
-      return;
-    }
-    setMessage('Password changed successfully!');
-    setPasswords({ current: '', new: '', confirm: '' });
-    setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleLogout = () => {
-    // In a real app you would clear tokens / call logout API
-    alert('You have been logged out!');
-    // Example: window.location.href = '/login';
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      setMessage(`Unable to sign out: ${error.message}`);
+    }
   };
 
   return (
@@ -155,7 +169,7 @@ const Settings = () => {
                   type="email"
                   name="email"
                   value={profile.email}
-                  onChange={handleProfileChange}
+                  readOnly
                 />
               </div>
 
@@ -170,8 +184,8 @@ const Settings = () => {
                 />
               </div>
 
-              <button type="submit" className="btn primary">
-                Save Changes
+              <button type="submit" className="btn primary" disabled={saving}>
+                {saving ? 'Saving…' : 'Save Changes'}
               </button>
             </form>
           </div>
@@ -180,47 +194,14 @@ const Settings = () => {
         {/* ===== SECURITY TAB ===== */}
         {activeTab === 'security' && (
           <div className="settings-card">
-            <h2>Change Password</h2>
-            <p className="section-desc">Keep your account secure</p>
-
-            <form onSubmit={handleChangePassword}>
-              <div className="form-group">
-                <label>Current Password</label>
-                <input
-                  type="password"
-                  name="current"
-                  value={passwords.current}
-                  onChange={handlePasswordChange}
-                  placeholder="Enter current password"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>New Password</label>
-                <input
-                  type="password"
-                  name="new"
-                  value={passwords.new}
-                  onChange={handlePasswordChange}
-                  placeholder="Enter new password"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Confirm New Password</label>
-                <input
-                  type="password"
-                  name="confirm"
-                  value={passwords.confirm}
-                  onChange={handlePasswordChange}
-                  placeholder="Confirm new password"
-                />
-              </div>
-
-              <button type="submit" className="btn primary">
-                Update Password
+            <h2>Password &amp; Security</h2>
+            <p className="section-desc">
+              Password updates use a time-limited email link. Your authentication
+              cookies are HttpOnly and are not stored in browser local storage.
+            </p>
+            <button type="button" className="btn primary" onClick={handlePasswordReset}>
+                Send password reset link
               </button>
-            </form>
           </div>
         )}
 
@@ -344,7 +325,7 @@ const Settings = () => {
             <button className="btn logout" onClick={handleLogout}>
               Log Out of Account
             </button>
-            <button className="btn danger">
+            <button className="btn danger" type="button" disabled title="Account deletion is not available through this backend.">
               Delete Account
             </button>
           </div>

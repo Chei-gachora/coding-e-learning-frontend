@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+media/
+sent_emails/
+**/__pycache__
+*.pyc

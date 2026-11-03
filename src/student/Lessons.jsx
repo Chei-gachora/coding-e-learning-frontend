@@ -1,286 +1,413 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
+import { useCourses } from '../context/CourseContext';
+import { api } from '../lib/api';
 
-export default function Lesson() {
+const EMPTY_LIST = [];
+
+function toList(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  throw new Error('The server returned course content in an unexpected format.');
+}
+
+function activityKind(activity) {
+  return String(activity?.activity_type || '').toLowerCase();
+}
+
+export default function Lessons() {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
-
-  const [code, setCode] = useState(() => {
-    return localStorage.getItem(`codelearn_code_${user?.id}`) || '<h1>Hello, Developer!</h1>\n<p>This is my first live HTML code preview!</p>';
-  });
-  const [activeTab, setActiveTab] = useState('editor');
-  const [quizAnswer, setQuizAnswer] = useState('');
-  
-  const [quizSubmitted, setQuizSubmitted] = useState(() => {
-    return localStorage.getItem(`codelearn_quiz_submitted_${user?.id}`) === 'true';
-  });
-  
-  const [quizCorrect, setQuizCorrect] = useState(() => {
-    return localStorage.getItem(`codelearn_quiz_correct_${user?.id}`) === 'true';
-  });
-
-  useEffect(() => {
-    if (user?.id) {
-      localStorage.setItem(`codelearn_code_${user.id}`, code);
-    }
-  }, [code, user?.id]);
+  const { courses, enrolledCourses, loading: coursesLoading } = useCourses();
+  const courseKey = searchParams.get('course');
+  const course = [...enrolledCourses, ...courses].find(
+    (item) => String(item.id) === String(courseKey) || item.slug === courseKey,
+  );
+  const [modules, setModules] = useState([]);
+  const [activeLessonId, setActiveLessonId] = useState(null);
+  const [activeActivityId, setActiveActivityId] = useState(null);
+  const [code, setCode] = useState('');
+  const [quiz, setQuiz] = useState(null);
+  const [answers, setAnswers] = useState({});
+  const [executionResult, setExecutionResult] = useState(null);
+  const [quizResult, setQuizResult] = useState(null);
+  const [submissionResult, setSubmissionResult] = useState(null);
+  const [pageError, setPageError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [working, setWorking] = useState(false);
 
   useEffect(() => {
-    if (user?.id) {
-      localStorage.setItem(`codelearn_quiz_submitted_${user.id}`, quizSubmitted);
-      localStorage.setItem(`codelearn_quiz_correct_${user.id}`, quizCorrect);
+    if (!course?.id || !course.isEnrolled || !user) {
+      setModules([]);
+      setActiveLessonId(null);
+      return undefined;
     }
-  }, [quizSubmitted, quizCorrect, user?.id]);
 
-  const handleQuizSubmit = () => {
-    if (!quizAnswer) return;
-    setQuizSubmitted(true);
-    setQuizCorrect(quizAnswer === 'h1');
+    let cancelled = false;
+    setLoading(true);
+    setPageError('');
+    Promise.resolve()
+      .then(async () => {
+        const moduleItems = toList(await api.get(
+          `/modules/?course=${encodeURIComponent(course.id)}`,
+        ));
+        const populatedModules = await Promise.all(moduleItems.map(async (module) => ({
+          ...module,
+          lessons: toList(await api.get(
+            `/lessons/?module=${encodeURIComponent(module.id)}`,
+          )),
+        })));
+        if (cancelled) return;
+        setModules(populatedModules);
+        const firstLesson = populatedModules.flatMap((module) => module.lessons)[0];
+        setActiveLessonId((current) => (
+          populatedModules.some((module) =>
+            module.lessons.some((lesson) => String(lesson.id) === String(current)),
+          )
+            ? current
+            : firstLesson?.id || null
+        ));
+      })
+      .catch((error) => {
+        if (!cancelled) setPageError(error.message || 'Unable to load course lessons.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [course?.id, course?.isEnrolled, user]);
+
+  const lessons = useMemo(
+    () => modules.flatMap((module) => module.lessons),
+    [modules],
+  );
+  const activeLesson = lessons.find(
+    (lesson) => String(lesson.id) === String(activeLessonId),
+  );
+  const activities = activeLesson?.activities || EMPTY_LIST;
+  const activeActivity = activities.find(
+    (activity) => String(activity.id) === String(activeActivityId),
+  );
+  const kind = activityKind(activeActivity);
+  const activeQuiz = quiz?.activityId === activeActivity?.id ? quiz.value : null;
+
+  useEffect(() => {
+    setActiveActivityId(activities[0]?.id || null);
+  }, [activeLessonId, activities, modules]);
+
+  useEffect(() => {
+    setCode(activeActivity?.starter_code || '');
+    setExecutionResult(null);
+    setQuizResult(null);
+    setSubmissionResult(null);
+    setActionError('');
+    setAnswers({});
+    setQuiz(null);
+  }, [activeActivityId, activeActivity?.starter_code]);
+
+  useEffect(() => {
+    if (kind !== 'quiz' || !activeActivity?.id) {
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/quizzes/?activity=${encodeURIComponent(activeActivity.id)}`)
+      .then((response) => {
+        if (!cancelled) {
+          const quizItems = toList(response);
+          setQuiz({
+            activityId: activeActivity.id,
+            value: quizItems[0] || response?.quiz || null,
+          });
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setActionError(error.message || 'Unable to load this quiz.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeActivity?.id, kind]);
+
+  const runTests = async () => {
+    if (!activeActivity) return;
+    setWorking(true);
+    setActionError('');
+    setExecutionResult(null);
+    try {
+      const result = await api.post('/execute/test/', {
+        activity_id: activeActivity.id,
+        language: activeActivity.language,
+        code,
+      });
+      setExecutionResult(result);
+    } catch (error) {
+      setActionError(error.message || 'Code execution failed.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const submitWork = async () => {
+    if (!activeActivity) return;
+    setWorking(true);
+    setActionError('');
+    try {
+      const result = await api.post('/submissions/', {
+        activity: activeActivity.id,
+        content: code,
+      });
+      setSubmissionResult(result);
+    } catch (error) {
+      setActionError(error.message || 'Unable to submit this activity.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const submitQuiz = async () => {
+    if (!activeQuiz?.id) {
+      setActionError('This quiz is not available yet.');
+      return;
+    }
+    if (activeQuiz.questions?.some((question) => answers[String(question.id)] === undefined)) {
+      setActionError('Answer each question before submitting so you do not use an attempt accidentally.');
+      return;
+    }
+    setWorking(true);
+    setActionError('');
+    try {
+      const result = await api.post(`/quizzes/${activeQuiz.id}/submit/`, { answers });
+      setQuizResult(result);
+    } catch (error) {
+      setActionError(error.message || 'Unable to submit your quiz.');
+    } finally {
+      setWorking(false);
+    }
   };
 
   return (
     <div className="dashboard-layout">
       <Sidebar />
-      <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
+      <main className="main-content" style={{ padding: '32px', minWidth: 0 }}>
+        <div className="breadcrumb">
+          <Link to="/my-courses">My Courses</Link>
+          <span>›</span>
+          <strong>{course?.title || 'Lessons'}</strong>
+        </div>
 
-      <main className="lesson-page" style={{ minHeight: 'unset', padding: '0' }}>
-        <div className="container" style={{ maxWidth: '100%', padding: '0' }}>
-          {/* BREADCRUMB */}
-          <div className="breadcrumb">
-            <Link to="/courses">Courses</Link>
-            <span>›</span>
-            <span>HTML Fundamentals</span>
-            <span>›</span>
-            <strong>Introduction to HTML</strong>
-          </div>
-
-          {/* LESSON HEADER */}
-          <section className="lesson-header">
-            <div>
-              <span className="lesson-label">MODULE 1 • LESSON 1</span>
-              <h1>Introduction to HTML</h1>
-              <p>
-                Learn the basics of HTML and understand how web pages are structured.
-              </p>
-            </div>
-            <span className="badge badge-success">In Progress</span>
+        {!courseKey && (
+          <section className="card">
+            <h1>Choose a course</h1>
+            <p>Open a course from your enrolled courses to view its lessons.</p>
+            <Link className="btn btn-primary" to="/my-courses">My courses</Link>
           </section>
+        )}
 
-          {/* LEARNING OBJECTIVES */}
-          <section className="card lesson-objectives">
-            <h2>🎯 Learning Objectives</h2>
-            <p>By the end of this lesson, you will be able to:</p>
-            <ul>
-              <li>Understand what HTML is.</li>
-              <li>Explain the basic structure of an HTML document.</li>
-              <li>Use common HTML elements and tags.</li>
-              <li>Create a simple HTML webpage.</li>
-            </ul>
+        {courseKey && coursesLoading && <p role="status">Loading course…</p>}
+
+        {courseKey && !coursesLoading && !course && (
+          <section className="card" role="alert">
+            <h1>Course unavailable</h1>
+            <p>This course could not be found in the server catalog.</p>
+            <Link to="/my-courses">Return to my courses</Link>
           </section>
+        )}
 
-          {/* VIDEO */}
-          <section className="card lesson-video">
-            <div className="section-title">
-              <div>
-                <span className="lesson-label">LEARN</span>
-                <h2>Watch the Lesson</h2>
-              </div>
-              <span className="video-duration">▶ 12 min</span>
-            </div>
-
-            <div className="video-placeholder" style={{ cursor: 'pointer' }}>
-              <div className="play-button">▶</div>
-              <h3>Introduction to HTML</h3>
-              <p>Click play to start learning the fundamentals of HTML structure and syntax.</p>
-            </div>
+        {course && !course.isEnrolled && (
+          <section className="card">
+            <h1>{course.title}</h1>
+            <p>Enroll in this course before opening its lessons.</p>
+            <Link className="btn btn-primary" to="/courses">Browse courses</Link>
           </section>
+        )}
 
-          {/* TUTORIAL */}
-          <section className="card tutorial-section">
-            <span className="lesson-label">TUTORIAL</span>
-            <h2>What is HTML?</h2>
-            <p>
-              HTML stands for HyperText Markup Language. It is used to create and structure content on web pages.
-            </p>
-            <p>
-              HTML uses elements called tags to tell the browser how different parts of a webpage should be displayed.
-            </p>
+        {course?.isEnrolled && (
+          <>
+            <header style={{ margin: '16px 0 24px' }}>
+              <h1>{course.title}</h1>
+              <p>{course.description}</p>
+            </header>
 
-            <h3>Basic HTML Structure</h3>
-            <div className="code-example">
-              <pre>
-                <code>{`<!DOCTYPE html>
-<html>
-<head>
-    <title>My First Page</title>
-</head>
+            {pageError && <p role="alert">{pageError}</p>}
+            {loading && <p role="status">Loading course content…</p>}
 
-<body>
-    <h1>Hello, Developer!</h1>
-    <p>Welcome to HTML.</p>
-</body>
+            {!loading && !pageError && modules.length === 0 && (
+              <section className="card">
+                <p>This course does not have published modules yet.</p>
+              </section>
+            )}
 
-</html>`}</code>
-              </pre>
-            </div>
-          </section>
+            {!loading && modules.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 3fr', gap: '24px' }}>
+                <nav className="card" aria-label="Course curriculum">
+                  {modules.map((module) => (
+                    <section key={module.id} style={{ marginBottom: '20px' }}>
+                      <h2 style={{ fontSize: '1rem' }}>{module.title}</h2>
+                      {module.lessons.length === 0 && (
+                        <p style={{ opacity: 0.75 }}>
+                          No lessons are available in this module yet. It may be locked or unpublished.
+                        </p>
+                      )}
+                      {module.lessons.map((lesson) => (
+                        <button
+                          key={lesson.id}
+                          type="button"
+                          className="btn btn-outline"
+                          aria-current={String(activeLessonId) === String(lesson.id) ? 'page' : undefined}
+                          onClick={() => setActiveLessonId(lesson.id)}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' }}
+                        >
+                          {lesson.title}
+                        </button>
+                      ))}
+                    </section>
+                  ))}
+                </nav>
 
-          {/* PRACTICE WITH INTERACTIVE EDITOR & PREVIEW */}
-          <section className="card practice-section">
-            <div className="section-title">
-              <div>
-                <span className="lesson-label">PRACTICE</span>
-                <h2>Try It Yourself</h2>
-              </div>
-              <span className="badge badge-warning">10 Points</span>
-            </div>
+                <article className="card" style={{ minWidth: 0 }}>
+                  {!activeLesson && <p>Select an available lesson to begin.</p>}
+                  {activeLesson && (
+                    <>
+                      <h2>{activeLesson.title}</h2>
+                      {activeLesson.learning_objectives && (
+                        <p>{activeLesson.learning_objectives}</p>
+                      )}
+                      {activeLesson.video_url && (
+                        <p>
+                          <a href={activeLesson.video_url} target="_blank" rel="noreferrer">
+                            Open lesson video
+                          </a>
+                        </p>
+                      )}
+                      {activeLesson.video_file_url && (
+                        <video
+                          controls
+                          preload="metadata"
+                          src={activeLesson.video_file_url}
+                          style={{ display: 'block', width: '100%', maxHeight: '480px', margin: '16px 0' }}
+                        >
+                          Your browser does not support video playback.
+                        </video>
+                      )}
+                      {activeLesson.tutorial_content && (
+                        <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                          {activeLesson.tutorial_content}
+                        </pre>
+                      )}
 
-            <p>
-              Type or edit your HTML below and toggle to <strong>Preview</strong> or click <strong>▶ Run Code</strong> to see live output!
-            </p>
+                      {activities.length > 0 && (
+                        <section style={{ marginTop: '28px' }}>
+                          <h3>Activities</h3>
+                          <div role="tablist" aria-label="Lesson activities" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {activities.map((activity) => (
+                              <button
+                                key={activity.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={String(activeActivityId) === String(activity.id)}
+                                className="btn btn-outline"
+                                onClick={() => setActiveActivityId(activity.id)}
+                              >
+                                {activity.title}
+                              </button>
+                            ))}
+                          </div>
+                          {activeActivity && (
+                            <div style={{ marginTop: '16px' }}>
+                              <h4>{activeActivity.title}</h4>
+                              <p>{activeActivity.instructions}</p>
 
-            <div className="editor-container">
-              <div className="editor-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    className={`btn btn-small ${activeTab === 'editor' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setActiveTab('editor')}
-                  >
-                    HTML Editor
-                  </button>
-                  <button
-                    className={`btn btn-small ${activeTab === 'preview' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setActiveTab('preview')}
-                  >
-                    Live Preview
-                  </button>
-                </div>
-                <span className="badge" style={{ background: '#334155', color: '#f8fafc' }}>HTML5</span>
-              </div>
+                              {kind === 'quiz' && (
+                                <div>
+                                  {!activeQuiz && <p role="status">Loading quiz…</p>}
+                                  {activeQuiz?.questions?.map((question) => (
+                                    <fieldset key={question.id} style={{ margin: '16px 0' }}>
+                                      <legend>{question.text}</legend>
+                                      {question.choices?.map((choice, index) => (
+                                        <label key={index} style={{ display: 'block', margin: '8px 0' }}>
+                                          <input
+                                            type="radio"
+                                            name={`question-${question.id}`}
+                                            checked={answers[String(question.id)] === index}
+                                            onChange={() => setAnswers((current) => ({
+                                              ...current,
+                                              [String(question.id)]: index,
+                                            }))}
+                                          />
+                                          {' '}{choice.text}
+                                        </label>
+                                      ))}
+                                    </fieldset>
+                                  ))}
+                                  {activeQuiz && (
+                                    <button className="btn btn-primary" onClick={submitQuiz} disabled={working}>
+                                      {working ? 'Submitting…' : 'Submit quiz'}
+                                    </button>
+                                  )}
+                                  {quizResult && (
+                                    <p role="status">
+                                      {quizResult.passed ? 'Quiz passed.' : 'Quiz not passed.'}
+                                      {' '}Score: {quizResult.score}/{quizResult.total_marks}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
 
-              {activeTab === 'editor' ? (
-                <textarea
-                  className="code-editor"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="Enter HTML code here..."
-                  style={{ width: '100%', minHeight: '160px', fontFamily: 'monospace', padding: '12px', fontSize: '14px' }}
-                />
-              ) : (
-                <div
-                  className="code-preview-output"
-                  style={{
-                    minHeight: '160px',
-                    padding: '16px',
-                    background: '#ffffff',
-                    color: '#0f172a',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1'
-                  }}
-                  dangerouslySetInnerHTML={{ __html: code }}
-                />
-              )}
-
-              <div className="editor-footer" style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => setActiveTab('preview')}
-                >
-                  ▶ Run Code &amp; Preview
-                </button>
-                <button
-                  className="btn btn-outline"
-                  onClick={() => setCode('<h1>Hello, Developer!</h1>\n<p>This is my first live HTML code preview!</p>')}
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </section>
-
-          {/* LESSON EXERCISE */}
-          <section className="card exercise-section">
-            <span className="lesson-label">EXERCISE</span>
-            <h2>Quick Check</h2>
-            <p>Which HTML tag is used to create the largest heading?</p>
-
-            <div className="answer-option">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="answer"
-                  value="h1"
-                  checked={quizAnswer === 'h1'}
-                  onChange={(e) => setQuizAnswer(e.target.value)}
-                />
-                &lt;h1&gt;
-              </label>
-            </div>
-
-            <div className="answer-option">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="answer"
-                  value="heading"
-                  checked={quizAnswer === 'heading'}
-                  onChange={(e) => setQuizAnswer(e.target.value)}
-                />
-                &lt;heading&gt;
-              </label>
-            </div>
-
-            <div className="answer-option">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="answer"
-                  value="head"
-                  checked={quizAnswer === 'head'}
-                  onChange={(e) => setQuizAnswer(e.target.value)}
-                />
-                &lt;head&gt;
-              </label>
-            </div>
-
-            <button
-              className="btn btn-primary"
-              onClick={handleQuizSubmit}
-              style={{ marginTop: '12px' }}
-            >
-              Submit Answer
-            </button>
-
-            {quizSubmitted && (
-              <div style={{ marginTop: '16px', padding: '12px', borderRadius: '6px', backgroundColor: quizCorrect ? '#dcfce7' : '#fee2e2', color: quizCorrect ? '#166534' : '#991b1b' }}>
-                {quizCorrect ? '🎉 Correct! <h1> defines the highest level heading.' : '❌ Incorrect. Hint: Heading tags range from <h1> (largest) to <h6> (smallest).'}
+                              {kind !== 'quiz' && (
+                                <>
+                                  <label htmlFor="lesson-code">Your code or written response</label>
+                                  <textarea
+                                    id="lesson-code"
+                                    value={code}
+                                    onChange={(event) => setCode(event.target.value)}
+                                    rows={12}
+                                    spellCheck="false"
+                                    style={{ display: 'block', width: '100%', fontFamily: 'monospace', margin: '8px 0 12px' }}
+                                  />
+                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    {['exercise', 'lab'].includes(kind) && (
+                                      <button className="btn btn-outline" onClick={runTests} disabled={working}>
+                                        {working ? 'Running…' : 'Run activity tests'}
+                                      </button>
+                                    )}
+                                    <button className="btn btn-primary" onClick={submitWork} disabled={working}>
+                                      {working ? 'Submitting…' : 'Submit activity'}
+                                    </button>
+                                  </div>
+                                  {executionResult && (
+                                    <p role="status">
+                                      {executionResult.passed} of {executionResult.total} tests passed
+                                      {typeof executionResult.score === 'number'
+                                        ? ` (${executionResult.score}%).`
+                                        : '.'}
+                                    </p>
+                                  )}
+                                  {submissionResult && (
+                                    <p role="status">
+                                      Submission received. Attempt {submissionResult.attempt_number}.
+                                    </p>
+                                  )}
+                                </>
+                              )}
+                              {actionError && <p role="alert">{actionError}</p>}
+                            </div>
+                          )}
+                        </section>
+                      )}
+                    </>
+                  )}
+                </article>
               </div>
             )}
-          </section>
-
-          {/* LESSON NAVIGATION */}
-          <div className="lesson-navigation">
-            <Link to="/courses" className="btn btn-outline">
-              ← Back to Courses
-            </Link>
-            <Link to="/exercise" className="btn btn-primary">
-              Continue to Exercise →
-            </Link>
-          </div>
-        </div>
+          </>
+        )}
       </main>
-
-      <footer>
-        <div className="container footer-content">
-          <div>
-            <h3>Code<span>Learn</span></h3>
-            <p>Learn coding. Practice skills. Build projects.</p>
-          </div>
-          <p>© 2026 CodeLearn. All rights reserved.</p>
-        </div>
-      </footer>
-      </div>
     </div>
   );
 }

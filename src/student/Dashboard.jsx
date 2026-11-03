@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCourses } from '../context/CourseContext';
 import logo from '../assets/codelearn_logo.jpg';
 import { FaHandsClapping } from "react-icons/fa6";
 import { IoBookSharp } from "react-icons/io5";
@@ -13,7 +14,8 @@ import { LuMessageCircleCode } from "react-icons/lu";
 import Sidebar from '../components/Sidebar';
 
 export default function StudentDashboard() {
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
+  const { courses } = useCourses();
   const navigate = useNavigate();
 
   // Interactive local state for student activities & lab submission
@@ -73,9 +75,13 @@ export default function StudentDashboard() {
     setTimeout(() => setNotification(''), 4000);
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      showTempNotification(`Unable to sign out: ${error.message}`);
+    }
   };
 
   const userName = user?.name || 'Alex Johnson';
@@ -97,7 +103,7 @@ export default function StudentDashboard() {
           <section className="welcome-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, #131c2e 0%, #1e293b 100%)', padding: '28px', borderRadius: '16px', border: '1px solid #24344d', marginBottom: '28px' }}>
             <div>
               <span className="badge badge-success" style={{ marginBottom: '10px' }}>🎓 STUDENT PORTAL</span>
-              <h1 style={{ fontSize: '28px', marginTop: '6px' }}>Welcome back, {userName}! <FaHandsClapping /></h1>
+              <h1 style={{ fontSize: '28px', marginTop: '6px', color: '#ffffff' }}>Welcome back, {userName}! <FaHandsClapping /></h1>
               <p style={{ color: '#94a3b8', marginTop: '4px' }}>
                 Track your course progress, complete daily labs, and build real-world coding projects.
               </p>
@@ -114,8 +120,8 @@ export default function StudentDashboard() {
             <div className="dashboard-stat card" style={{ padding: '20px' }}>
               <div className="stat-icon" style={{ fontSize: '28px' }}><IoBookSharp /></div>
               <div>
-                <strong style={{ fontSize: '24px' }}>3</strong>
-                <span style={{ display: 'block', color: '#94a3b8', fontSize: '13px' }}>Enrolled Courses</span>
+                <strong style={{ fontSize: '24px' }}>{courses.length}</strong>
+                <span style={{ display: 'block', color: '#94a3b8', fontSize: '13px' }}>Available Courses</span>
               </div>
             </div>
 
@@ -342,4 +348,3 @@ export default function StudentDashboard() {
     </div>
   );
 }
-

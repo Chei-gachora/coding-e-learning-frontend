@@ -1,149 +1,97 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { api, clearLegacyTokens } from '../lib/api';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export const DEFAULT_USERS = {
-  student: {
-    id: 'usr_student_1',
-    name: 'Alex Johnson',
-    email: 'student@codelearn.com',
-    role: 'student',
-    avatar: 'S',
-    title: 'Student Learner'
-  },
-  instructor: {
-    id: 'usr_inst_1',
-    name: 'Dr. Sarah Jenkins',
-    email: 'instructor@codelearn.com',
-    role: 'instructor',
-    avatar: 'I',
-    title: 'Senior Instructor'
-  },
-  admin: {
-    id: 'usr_admin_1',
-    name: 'System Admin',
-    email: 'admin@codelearn.com',
-    role: 'admin',
-    avatar: 'A',
-    title: 'Platform Administrator'
-  }
-};
-
-/**
- * Detect user role from their email address.
- * - local part is/starts with "admin"      -> admin
- * - local part is/starts with "instructor" -> instructor
- * - everything else                        -> student
- */
-export function detectRoleFromEmail(email) {
-  const lower = (email || '').toLowerCase().trim();
-  const localPart = lower.split('@')[0];
-
-  if (
-    localPart === 'admin' ||
-    localPart.startsWith('admin.') ||
-    localPart.startsWith('admin_')
-  ) {
-    return 'admin';
-  }
-  if (
-    localPart === 'instructor' ||
-    localPart.startsWith('instructor.') ||
-    localPart.startsWith('instructor_')
-  ) {
-    return 'instructor';
-  }
-  return 'student';
+function normalizeUser(user) {
+  if (!user?.role) return null;
+  const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim()
+    || user.username
+    || user.email;
+  return {
+    ...user,
+    name,
+    avatar: name?.[0]?.toUpperCase() || '?',
+    title: {
+      student: 'Student Learner',
+      instructor: 'Instructor',
+      admin: 'Platform Administrator',
+    }[user.role] || user.role,
+  };
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('codelearn_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved user', e);
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
 
-  // 5 minute inactivity timeout
   useEffect(() => {
-    let inactivityTimer;
+    let active = true;
+    clearLegacyTokens();
+    api.me()
+      .then((profile) => {
+        if (active) setUser(normalizeUser(profile));
+      })
+      .catch((error) => {
+        if (active && error.status !== 401) setAuthError(error.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
+  const logout = useCallback(async () => {
+    await api.logout();
+    setUser(null);
+    setAuthError('');
+  }, []);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    let timer;
     const resetTimer = () => {
-      clearTimeout(inactivityTimer);
-      if (user) {
-        inactivityTimer = setTimeout(() => {
-          logout();
-          alert('You have been logged out due to 5 minutes of inactivity.');
-        }, 5 * 60 * 1000);
-      }
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        logout().catch((error) => {
+          setAuthError(`Automatic sign-out failed: ${error.message}`);
+        });
+      }, 5 * 60 * 1000);
     };
 
-    if (user) {
-      resetTimer();
-      window.addEventListener('mousemove', resetTimer);
-      window.addEventListener('keydown', resetTimer);
-      window.addEventListener('click', resetTimer);
-      window.addEventListener('scroll', resetTimer);
-    }
-
+    resetTimer();
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+    window.addEventListener('click', resetTimer);
+    window.addEventListener('scroll', resetTimer);
     return () => {
-      clearTimeout(inactivityTimer);
+      window.clearTimeout(timer);
       window.removeEventListener('mousemove', resetTimer);
       window.removeEventListener('keydown', resetTimer);
       window.removeEventListener('click', resetTimer);
       window.removeEventListener('scroll', resetTimer);
     };
-  }, [user]);
+  }, [user, logout]);
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('codelearn_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('codelearn_user');
+  const login = useCallback(async (email, password) => {
+    setAuthError('');
+    const response = await api.login(email, password);
+    const nextUser = normalizeUser(response?.user);
+    if (!nextUser) {
+      throw new Error('The server did not return a valid user session.');
     }
-  }, [user]);
+    setUser(nextUser);
+    return nextUser;
+  }, []);
 
-  const login = (email, password, customName = '') => {
-    // Auto-detect role from the email — no manual role selection needed
-    const role = detectRoleFromEmail(email);
-    let userData = DEFAULT_USERS[role] || DEFAULT_USERS.student;
-
-    if (email) {
-      userData = {
-        ...userData,
-        email: email,
-        name:
-          customName ||
-          email.split('@')[0].charAt(0).toUpperCase() +
-            email.split('@')[0].slice(1),
-        avatar: (customName || email)[0].toUpperCase(),
-        role: role,
-        id: 'usr_' + role + '_' + email.toLowerCase().replace(/[^a-z0-9]/g, ''),
-      };
-    }
-
-    setUser(userData);
-    return userData;
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('codelearn_user');
-  };
-
-  const switchRole = (newRole) => {
-    if (DEFAULT_USERS[newRole]) {
-      setUser(DEFAULT_USERS[newRole]);
-    }
-  };
+  const updateProfile = useCallback((profile) => {
+    setUser((current) => current ? normalizeUser({ ...current, ...profile }) : current);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, switchRole }}>
+    <AuthContext.Provider value={{ user, login, logout, updateProfile, loading, authError }}>
       {children}
     </AuthContext.Provider>
   );

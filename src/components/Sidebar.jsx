@@ -1,9 +1,11 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { MdDashboardCustomize } from "react-icons/md";
 import { FaDiscourse } from "react-icons/fa";
 import { FaBookReader } from "react-icons/fa";
-import { BsFire } from "react-icons/bs";
+import { BsFire, BsSunFill, BsMoonStarsFill } from "react-icons/bs";
 import { PiCertificateFill } from "react-icons/pi";
 import { FaSyringe } from "react-icons/fa";
 import { GiTrophyCup } from "react-icons/gi";
@@ -13,9 +15,19 @@ import { CgProfile } from "react-icons/cg";
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
+  const [logoutError, setLogoutError] = useState('');
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async (event) => {
+    event.preventDefault();
+    setLogoutError('');
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      setLogoutError(error.message || 'Unable to sign out. Please try again.');
+    }
   };
 
   const role = user?.role || 'student';
@@ -46,10 +58,20 @@ const Sidebar = () => {
 
   return (
     <aside className="sidebar">
-      <div className="logo">
-          <Link to="/" className="logo">
-            Code<span>Learn</span>
-          </Link>
+      <div className="sidebar-logo-row">
+        <Link to="/" className="logo">
+          Code<span>Learn</span>
+        </Link>
+        <button
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          <span className="theme-toggle-icon">
+            {theme === 'dark' ? <BsSunFill /> : <BsMoonStarsFill />}
+          </span>
+        </button>
       </div>
 
       <nav className="nav">
@@ -74,6 +96,7 @@ const Sidebar = () => {
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{role}</span>
           </div>
         </div>
+        {logoutError && <div role="alert" style={{ color: '#f87171' }}>{logoutError}</div>}
         <Link to="/login" onClick={handleLogout} className="logout-btn" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>
           Log Out
         </Link>

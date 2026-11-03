@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTheme } from './context/ThemeContext';
 import { ImHtmlFive } from "react-icons/im";
 import { SiCss } from "react-icons/si";
 import { IoLogoJavascript } from "react-icons/io5";
@@ -7,17 +8,32 @@ import { ImRocket } from "react-icons/im";
 import { IoBookSharp } from "react-icons/io5";
 import { FaLaptopCode } from "react-icons/fa6";
 import { SiProgress } from "react-icons/si";
+import { BsSunFill, BsMoonStarsFill } from "react-icons/bs";
 
 
 export default function Home() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <>
       {/* NAVIGATION */}
       <header className="navbar">
         <div className="container nav-content">
-          <Link to="/" className="logo">
-            Code<span>Learn</span>
-          </Link>
+          <div className="nav-logo-group">
+            <Link to="/" className="logo">
+              Code<span>Learn</span>
+            </Link>
+            <button
+              className="theme-toggle-btn"
+              onClick={toggleTheme}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              <span className="theme-toggle-icon">
+                {theme === 'dark' ? <BsSunFill /> : <BsMoonStarsFill />}
+              </span>
+            </button>
+          </div>
 
           <nav className="nav-links">
             <a href="#home">Home</a>
@@ -28,7 +44,7 @@ export default function Home() {
 
           <div className="nav-buttons">
             <Link to="/login" className="btn btn-outline">Login</Link>
-            <Link to="/courses" className="btn btn-outline">Explore courses</Link>
+           
           </div>
         </div>
       </header>
